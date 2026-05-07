@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ufc-mobile-wrapper",
+    "name": "Fight Card Society",
     "slug": "ufc-mobile-wrapper",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -34,12 +34,12 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/logo-fight-card-society.png",
+          "imageWidth": 180,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#050505",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#050505"
           }
         }
       ]

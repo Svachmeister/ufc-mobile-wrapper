@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar'
 import { useRef, useState } from 'react'
 import {
-  ActivityIndicator,
+  Image,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -29,7 +29,11 @@ export default function HomeScreen() {
         <StatusBar style="light" />
 
         <View style={styles.center}>
-          <Text style={styles.logo}>UFC Collector</Text>
+          <Image
+            source={require('../assets/images/logo-fight-card-society.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={styles.title}>Connection problem</Text>
           <Text style={styles.text}>
             The app could not load. Check your internet connection and try again.
@@ -78,9 +82,11 @@ export default function HomeScreen() {
 
       {isLoading && (
         <View style={styles.loadingOverlay}>
-          <Text style={styles.logo}>UFC Collector</Text>
-          <ActivityIndicator size="small" />
-          <Text style={styles.loadingText}>Loading your collection...</Text>
+          <Image
+            source={require('../assets/images/logo-fight-card-society.png')}
+            style={styles.splashLogo}
+            resizeMode="contain"
+          />
         </View>
       )}
     </SafeAreaView>
@@ -98,21 +104,18 @@ const styles = StyleSheet.create({
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#070707',
+    backgroundColor: '#050505',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 14,
   },
-  logo: {
-    color: '#ffffff',
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: 0.4,
+  splashLogo: {
+    width: 168,
+    height: 168,
   },
-  loadingText: {
-    color: '#a3a3a3',
-    fontSize: 14,
-    marginTop: 2,
+  logoImage: {
+    width: 132,
+    height: 132,
+    marginBottom: 8,
   },
   center: {
     flex: 1,
