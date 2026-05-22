@@ -1,49 +1,45 @@
+import { router } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
-  View
+  View,
 } from 'react-native'
-import { WebView } from 'react-native-webview'
 
-const APP_URL = 'https://ufc-collector.vercel.app'
+import { useAuth } from '@/src/features/auth/AuthProvider'
+import { LoginScreen } from '@/src/features/auth/components/LoginScreen'
+import { RegisterScreen } from '@/src/features/auth/components/RegisterScreen'
 
 export default function HomeScreen() {
-  const webViewRef = useRef<WebView>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [hasError, setHasError] = useState(false)
+  const { isAuthenticated, isLoading, signOut, user } = useAuth()
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
 
-  const reload = () => {
-    setHasError(false)
-    setIsLoading(true)
-    webViewRef.current?.reload()
-  }
-
-  if (hasError) {
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar style="light" />
-
-        <View style={styles.center}>
+        <View style={styles.loadingScreen}>
           <Image
             source={require('../assets/images/logo-fight-card-society.png')}
-            style={styles.logoImage}
+            style={styles.loadingLogo}
             resizeMode="contain"
           />
-          <Text style={styles.title}>Connection problem</Text>
-          <Text style={styles.text}>
-            The app could not load. Check your internet connection and try again.
-          </Text>
-
-          <Pressable style={styles.button} onPress={reload}>
-            <Text style={styles.buttonText}>Try again</Text>
-          </Pressable>
+          <ActivityIndicator color="#ffffff" size="small" />
         </View>
       </SafeAreaView>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return authMode === 'login' ? (
+      <LoginScreen onShowRegister={() => setAuthMode('register')} />
+    ) : (
+      <RegisterScreen onShowLogin={() => setAuthMode('login')} />
     )
   }
 
@@ -51,44 +47,39 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
 
-      <WebView
-        ref={webViewRef}
-        source={{ uri: APP_URL }}
-        style={styles.webview}
-        startInLoadingState={false}
-        javaScriptEnabled
-        domStorageEnabled
-        allowsBackForwardNavigationGestures
-        pullToRefreshEnabled
-        bounces={false}
-        overScrollMode="never"
-        onLoadStart={() => {
-          setHasError(false)
-          setIsLoading(true)
-        }}
-        onLoadEnd={() => {
-          setIsLoading(false)
-        }}
-        onError={() => {
-          setIsLoading(false)
-          setHasError(true)
-        }}
-        onHttpError={(event) => {
-          if (event.nativeEvent.statusCode >= 500) {
-            setHasError(true)
-          }
-        }}
-      />
+      <View style={styles.content}>
+        <Image
+          source={require('../assets/images/logo-fight-card-society.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
 
-      {isLoading && (
-        <View style={styles.loadingOverlay}>
-          <Image
-            source={require('../assets/images/logo-fight-card-society.png')}
-            style={styles.splashLogo}
-            resizeMode="contain"
-          />
+        <View style={styles.panel}>
+          <Text style={styles.kicker}>Native app</Text>
+          <Text style={styles.title}>Fight Card Society</Text>
+          <Text style={styles.text}>
+            Home is ready for the first native product screens. The WebView fallback remains available while dashboard, fantasy, and collection move over.
+          </Text>
+
+          <View style={styles.statusBox}>
+            <Text style={styles.statusLabel}>Signed in</Text>
+            <Text style={styles.statusText}>{user?.email || 'Member'}</Text>
+          </View>
+
+          <Pressable
+            style={styles.primaryButton}
+            onPress={() => router.push('/web-fallback' as never)}
+          >
+            <Text style={styles.primaryButtonText}>Open WebView fallback</Text>
+          </Pressable>
+
+          {isAuthenticated && (
+            <Pressable style={styles.secondaryButton} onPress={signOut}>
+              <Text style={styles.secondaryButtonText}>Sign out native session</Text>
+            </Pressable>
+          )}
         </View>
-      )}
+      </View>
     </SafeAreaView>
   )
 }
@@ -98,58 +89,105 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#070707',
   },
-  webview: {
+  content: {
     flex: 1,
-    backgroundColor: '#070707',
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#050505',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  splashLogo: {
-    width: 168,
-    height: 168,
-  },
-  logoImage: {
-    width: 132,
-    height: 132,
-    marginBottom: 8,
-  },
-  center: {
-    flex: 1,
-    backgroundColor: '#070707',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-  },
-  title: {
-    color: '#ffffff',
-    fontSize: 21,
-    fontWeight: '800',
-    marginTop: 22,
-    marginBottom: 8,
-  },
-  text: {
-    color: '#a3a3a3',
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  button: {
-    minHeight: 48,
-    minWidth: 140,
-    borderRadius: 999,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 22,
   },
-  buttonText: {
-    color: '#070707',
-    fontSize: 15,
-    fontWeight: '800',
+  loadingLogo: {
+    alignSelf: 'center',
+    height: 104,
+    marginBottom: 18,
+    width: 104,
+  },
+  loadingScreen: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  logo: {
+    alignSelf: 'center',
+    height: 118,
+    marginBottom: 18,
+    width: 118,
+  },
+  panel: {
+    backgroundColor: '#101011',
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    padding: 20,
+  },
+  kicker: {
+    color: '#ef4444',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  title: {
+    color: '#ffffff',
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+    lineHeight: 32,
+    textTransform: 'uppercase',
+  },
+  text: {
+    color: '#b5b5b5',
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 12,
+  },
+  statusBox: {
+    backgroundColor: '#070707',
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    marginTop: 18,
+    padding: 14,
+  },
+  statusLabel: {
+    color: '#777777',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.6,
+    marginBottom: 7,
+    textTransform: 'uppercase',
+  },
+  statusText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  primaryButton: {
+    alignItems: 'center',
+    backgroundColor: '#dc2626',
+    justifyContent: 'center',
+    marginTop: 18,
+    minHeight: 50,
+    paddingHorizontal: 16,
+  },
+  primaryButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+  },
+  secondaryButton: {
+    alignItems: 'center',
+    borderColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    justifyContent: 'center',
+    marginTop: 10,
+    minHeight: 46,
+    paddingHorizontal: 16,
+  },
+  secondaryButtonText: {
+    color: '#d5d5d5',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
 })
