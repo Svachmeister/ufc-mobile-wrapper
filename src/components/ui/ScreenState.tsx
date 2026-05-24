@@ -1,6 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '@/src/lib/theme/tokens';
+import { colors, radius, spacing } from '@/src/lib/theme/tokens';
 
 type ScreenStateProps = {
   actionLabel?: string;
@@ -13,7 +13,9 @@ type ScreenStateProps = {
 export function LoadingScreen({ label = 'Loading' }: ScreenStateProps) {
   return (
     <View style={styles.container}>
-      <ActivityIndicator color={colors.text} size="small" />
+      <View style={styles.loadingMark}>
+        <ActivityIndicator color={colors.red} size="small" />
+      </View>
       <Text style={styles.label}>{label}</Text>
     </View>
   );
@@ -26,8 +28,9 @@ export function ScreenState({
   title = 'Nothing here yet',
 }: ScreenStateProps) {
   return (
-    <View style={styles.container}>
+    <View style={styles.stateWrap}>
       <View style={styles.panel}>
+        <Text style={styles.kicker}>Fight Card Society</Text>
         <Text style={styles.title}>{title}</Text>
         {message ? <Text style={styles.message}>{message}</Text> : null}
         {actionLabel && onAction ? (
@@ -43,55 +46,83 @@ export function ScreenState({
 const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
-    backgroundColor: colors.accent,
+    backgroundColor: colors.red,
+    borderColor: colors.red,
+    borderRadius: radius.sm,
+    borderWidth: 1,
     justifyContent: 'center',
-    marginTop: 18,
-    minHeight: 46,
+    marginTop: 16,
+    minHeight: spacing.controlHeight,
     paddingHorizontal: 18,
   },
   buttonText: {
-    color: colors.text,
+    color: colors.textInverse,
     fontSize: 11,
     fontWeight: '900',
-    letterSpacing: 1.5,
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
   container: {
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.canvas,
     flex: 1,
     justifyContent: 'center',
   },
+  kicker: {
+    color: colors.red,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
   label: {
-    color: colors.muted,
+    color: colors.gray700,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.5,
     marginTop: 12,
     textTransform: 'uppercase',
   },
+  loadingMark: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderTopColor: colors.ink,
+    borderTopWidth: 3,
+    borderWidth: 1,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
   message: {
-    color: colors.textSoft,
+    color: colors.gray700,
     fontSize: 14,
+    fontWeight: '600',
     lineHeight: 20,
     marginTop: 10,
-    textAlign: 'center',
   },
   panel: {
-    backgroundColor: colors.panel,
+    backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderTopColor: colors.accent,
-    borderTopWidth: 2,
+    borderRadius: radius.md,
+    borderTopColor: colors.red,
+    borderTopWidth: 3,
     borderWidth: 1,
-    marginHorizontal: 24,
-    padding: 20,
+    marginHorizontal: 22,
+    padding: 18,
+  },
+  stateWrap: {
+    backgroundColor: colors.canvas,
+    paddingVertical: 6,
   },
   title: {
-    color: colors.text,
-    fontSize: 20,
+    color: colors.ink,
+    fontSize: 21,
     fontWeight: '900',
-    letterSpacing: 0.4,
-    textAlign: 'center',
+    letterSpacing: -0.2,
+    lineHeight: 24,
     textTransform: 'uppercase',
   },
 });

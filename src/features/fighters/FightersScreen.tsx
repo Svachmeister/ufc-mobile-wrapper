@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Image,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -58,6 +59,15 @@ function formatCardStatus(status: string | null) {
 
 function getFighterMeta(fighter: NativeFighter) {
   return [fighter.weightClass, fighter.country, fighter.record].filter(Boolean).join(' - ') || 'Profile details pending';
+}
+
+function getFighterInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) return 'FC';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+
+  return parts.slice(0, 2).map((part) => part[0]).join('').toUpperCase();
 }
 
 export function FightersScreen() {
@@ -221,11 +231,16 @@ export function FightersScreen() {
 
           {selectedFighter ? (
             <>
-              <Text style={styles.sectionTitle}>{selectedFighter.name}</Text>
-              {selectedFighter.nickname ? (
-                <Text style={styles.nickname}>{selectedFighter.nickname}</Text>
-              ) : null}
-              <Text style={styles.panelText}>{getFighterMeta(selectedFighter)}</Text>
+              <View style={styles.profileHeader}>
+                <FighterPortrait fighter={selectedFighter} size="large" />
+                <View style={styles.profileCopy}>
+                  <Text numberOfLines={2} style={styles.sectionTitle}>{selectedFighter.name}</Text>
+                  {selectedFighter.nickname ? (
+                    <Text numberOfLines={1} style={styles.nickname}>{selectedFighter.nickname}</Text>
+                  ) : null}
+                  <Text style={styles.panelText}>{getFighterMeta(selectedFighter)}</Text>
+                </View>
+              </View>
               <View style={styles.detailStats}>
                 <MiniStat label="Cards" value={String(selectedFighter.cardCount)} />
                 <MiniStat label="Owned" value={String(selectedFighter.ownedCount)} />
@@ -248,6 +263,42 @@ export function FightersScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function FighterPortrait({
+  fighter,
+  size = 'small',
+}: {
+  fighter: NativeFighter;
+  size?: 'large' | 'small';
+}) {
+  const [hasImageError, setHasImageError] = useState(false);
+
+  useEffect(() => {
+    setHasImageError(false);
+  }, [fighter.imageUrl]);
+
+  const showImage = Boolean(fighter.imageUrl && !hasImageError);
+  const isLarge = size === 'large';
+
+  return (
+    <View style={[styles.portraitFrame, isLarge ? styles.portraitLarge : styles.portraitSmall]}>
+      {showImage ? (
+        <Image
+          onError={() => setHasImageError(true)}
+          resizeMode="cover"
+          source={{ uri: fighter.imageUrl as string }}
+          style={styles.portraitImage}
+        />
+      ) : (
+        <View style={styles.portraitFallback}>
+          <Text style={[styles.portraitInitials, isLarge ? styles.portraitInitialsLarge : null]}>
+            {getFighterInitials(fighter.name)}
+          </Text>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -281,6 +332,7 @@ function FighterRow({
       onPress={onPress}
       style={[styles.fighterRow, isSelected ? styles.fighterRowSelected : null]}
     >
+      <FighterPortrait fighter={fighter} />
       <View style={styles.fighterInfo}>
         <Text numberOfLines={1} style={styles.fighterName}>
           {fighter.name}
@@ -396,6 +448,41 @@ const styles = StyleSheet.create({
   fighterRowSelected: {
     borderColor: 'rgba(220,38,38,0.55)',
   },
+  portraitFallback: {
+    alignItems: 'center',
+    backgroundColor: colors.ink,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  portraitFrame: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.borderStrong,
+    borderWidth: 1,
+    flexShrink: 0,
+    overflow: 'hidden',
+  },
+  portraitImage: {
+    height: '100%',
+    width: '100%',
+  },
+  portraitInitials: {
+    color: colors.textInverse,
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  portraitInitialsLarge: {
+    fontSize: 24,
+    letterSpacing: 1.1,
+  },
+  portraitLarge: {
+    height: 104,
+    width: 82,
+  },
+  portraitSmall: {
+    height: 54,
+    width: 44,
+  },
   grid: {
     flexDirection: 'row',
     gap: 8,
@@ -472,6 +559,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     marginTop: 10,
+  },
+  profileCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  profileHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 14,
+    marginTop: 12,
   },
   rowAction: {
     borderColor: 'rgba(220,38,38,0.35)',

@@ -13,6 +13,7 @@ export type NativeFighter = {
   cardCount: number;
   country: string | null;
   id: string;
+  imageUrl: string | null;
   name: string;
   nickname: string | null;
   ownedCount: number;
@@ -85,6 +86,7 @@ function normalizeFighter(row: Record<string, unknown>, index: number): NativeFi
     cardCount: 0,
     country: readString(row, ['country', 'nationality', 'flag_country']),
     id,
+    imageUrl: readString(row, ['image_url', 'imageUrl']),
     name,
     nickname: readString(row, ['nickname', 'nick_name']),
     ownedCount: 0,
