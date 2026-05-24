@@ -17,9 +17,9 @@ export default function AppLayout() {
         tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.muted,
         tabBarLabelStyle: {
-          fontSize: 10,
+          fontSize: 9,
           fontWeight: '900',
-          letterSpacing: 0.7,
+          letterSpacing: 0.45,
           textTransform: 'uppercase',
         },
         tabBarStyle: {
@@ -46,7 +46,7 @@ export default function AppLayout() {
       <Tabs.Screen
         name="collection"
         options={{
-          tabBarLabel: 'Collection',
+          tabBarLabel: 'Cards',
         }}
       />
       <Tabs.Screen
@@ -59,6 +59,12 @@ export default function AppLayout() {
         name="fighters"
         options={{
           tabBarLabel: 'Fighters',
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          tabBarLabel: 'Profile',
         }}
       />
     </Tabs>
