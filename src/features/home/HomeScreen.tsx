@@ -13,7 +13,10 @@ import {
 } from 'react-native';
 
 import {
+  ListRow,
+  SectionPanel,
   StatTile,
+  StatusBadge,
   WebFallbackButton,
   sharedScreenStyles,
 } from '@/src/components/ui/NativePrimitives';
@@ -130,6 +133,10 @@ export function HomeScreen() {
     router.push('/web-fallback' as never);
   };
 
+  const openRoute = (path: '/collection' | '/fantasy' | '/fighters' | '/sets') => {
+    router.push(path as never);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
@@ -152,7 +159,7 @@ export function HomeScreen() {
             />
             <View style={styles.brandTextWrap}>
               <Text style={styles.brandKicker}>Fight Card Society</Text>
-              <Text style={styles.brandTitle}>Native Home</Text>
+              <Text style={styles.brandTitle}>Member Home</Text>
             </View>
           </View>
 
@@ -161,16 +168,16 @@ export function HomeScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.hero}>
+        <SectionPanel variant="inverse" style={styles.hero}>
           <Text style={styles.kicker}>Member dashboard</Text>
           <Text style={styles.title}>Back in your corner, {displayName}</Text>
           <Text style={styles.subtitle}>
-            The native app shell is live. Dashboard, fantasy, and collection can now move over screen by screen.
+            Track your collection. Follow fight cards. Build your picks.
           </Text>
           {profile?.country ? (
             <Text style={styles.country}>{profile.country}</Text>
           ) : null}
-        </View>
+        </SectionPanel>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -179,10 +186,10 @@ export function HomeScreen() {
           <StatTile label="Wanted" value={isLoading ? '--' : String(counts.wanted)} />
         </View>
 
-        <View style={styles.panel}>
+        <SectionPanel style={styles.panel}>
           <View style={styles.panelHeader}>
             <Text style={styles.kicker}>Next event</Text>
-            <Text style={styles.statusPill}>{getFantasyPickStatus(nextEvent)}</Text>
+            <StatusBadge label={getFantasyPickStatus(nextEvent)} tone={nextEvent ? 'red' : 'neutral'} />
           </View>
           <Text style={styles.eventTitle}>
             {isLoading ? 'Loading event' : nextEvent?.name || 'No upcoming event'}
@@ -190,20 +197,52 @@ export function HomeScreen() {
           <Text style={styles.eventDate}>
             {isLoading ? 'Checking schedule' : formatFantasyEventDate(nextEvent?.starts_at || nextEvent?.event_date)}
           </Text>
-        </View>
+        </SectionPanel>
 
-        <View style={styles.panel}>
-          <Text style={styles.kicker}>App shell</Text>
+        <SectionPanel style={styles.panel}>
+          <View style={styles.panelHeader}>
+            <Text style={styles.kicker}>Fight Card Society</Text>
+            <Text style={styles.countBadge}>4 areas</Text>
+          </View>
+          <View style={styles.quickList}>
+            <ListRow
+              action={<StatusBadge label="Open" tone="dark" />}
+              meta={`${counts.owned} owned - ${counts.wanted} wanted`}
+              onPress={() => openRoute('/collection')}
+              title="Cards / My Collection"
+            />
+            <ListRow
+              action={<StatusBadge label="Open" tone="dark" />}
+              meta="Browse set checklists"
+              onPress={() => openRoute('/sets')}
+              title="Sets / Checklists"
+            />
+            <ListRow
+              action={<StatusBadge label="Open" tone="red" />}
+              meta={nextEvent?.name || 'Events and leaderboard'}
+              onPress={() => openRoute('/fantasy')}
+              title="Fantasy"
+            />
+            <ListRow
+              action={<StatusBadge label="Open" tone="dark" />}
+              meta="Fighter profiles and card counts"
+              onPress={() => openRoute('/fighters')}
+              title="Fighters"
+            />
+          </View>
+        </SectionPanel>
+
+        <SectionPanel style={styles.utilityPanel} variant="muted">
+          <Text style={styles.kicker}>Web tools</Text>
           <Text style={styles.panelText}>
-            The first native tab is live. Fantasy, collection, and profile can now move over as focused native screens.
+            Need the full web tools?
           </Text>
           <WebFallbackButton
-            label="Open WebView fallback"
+            label="Open web tools"
             onPress={openWebFallback}
-            style={styles.primaryButton}
-            textStyle={styles.primaryButtonText}
+            style={styles.fallbackButton}
           />
-        </View>
+        </SectionPanel>
       </ScrollView>
     </SafeAreaView>
   );
@@ -243,8 +282,8 @@ const styles = StyleSheet.create({
   },
   country: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.surface,
-    borderColor: colors.borderStrong,
+    backgroundColor: colors.textInverse,
+    borderColor: colors.textInverse,
     borderWidth: 1,
     color: colors.ink,
     fontSize: 11,
@@ -255,10 +294,21 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     textTransform: 'uppercase',
   },
+  countBadge: {
+    borderColor: colors.border,
+    borderWidth: 1,
+    color: colors.textSoft,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    textTransform: 'uppercase',
+  },
   errorText: {
-    color: '#fca5a5',
+    color: colors.danger,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
     lineHeight: 18,
   },
   eventDate: {
@@ -286,11 +336,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   hero: {
-    backgroundColor: colors.inverseSurface,
-    borderColor: colors.ink,
-    borderTopColor: colors.red,
-    borderTopWidth: 3,
-    borderWidth: 1,
     padding: 18,
   },
   kicker: {
@@ -301,11 +346,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   panel: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderTopColor: colors.ink,
-    borderTopWidth: 2,
-    borderWidth: 1,
     padding: 16,
   },
   panelHeader: {
@@ -317,22 +357,16 @@ const styles = StyleSheet.create({
     color: colors.textSoft,
     fontSize: 13,
     lineHeight: 19,
+    marginTop: 10,
+  },
+  fallbackButton: {
+    alignSelf: 'flex-start',
+    marginTop: 12,
+    minHeight: 42,
+  },
+  quickList: {
+    gap: 8,
     marginTop: 14,
-  },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: colors.accent,
-    justifyContent: 'center',
-    marginTop: 16,
-    minHeight: 50,
-    paddingHorizontal: 16,
-  },
-  primaryButtonText: {
-    color: colors.textInverse,
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 1.7,
-    textTransform: 'uppercase',
   },
   scrollContent: {
     ...sharedScreenStyles.scrollContent,
@@ -351,18 +385,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
-  statusPill: {
-    backgroundColor: colors.red,
-    borderColor: colors.red,
-    borderWidth: 1,
-    color: colors.textInverse,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    textTransform: 'uppercase',
-  },
   subtitle: {
     color: colors.gray200,
     fontSize: 14,
@@ -377,5 +399,8 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     marginTop: 8,
     textTransform: 'uppercase',
+  },
+  utilityPanel: {
+    padding: 14,
   },
 });
