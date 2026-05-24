@@ -17,6 +17,11 @@ import {
   type FantasyLeaderboardStanding,
   getFantasyLeaderboard,
 } from '@/src/lib/api/fantasy';
+import {
+  formatFantasyEventDate,
+  getFantasyPickStatus,
+  getUpcomingFantasyEvents,
+} from '@/src/lib/fantasyEvents';
 import { supabase } from '@/src/lib/supabase';
 import { colors, spacing } from '@/src/lib/theme/tokens';
 
@@ -37,50 +42,8 @@ type FantasyLoadState = {
   leaderboard: FantasyLeaderboardStanding[];
 };
 
-function formatEventDate(value?: string | null) {
-  if (!value) return 'Date TBA';
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Date TBA';
-
-  return new Intl.DateTimeFormat('en-US', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
-}
-
-function getEventTimeValue(event: FantasyEvent) {
-  const value = event.starts_at || event.event_date;
-  const parsed = value ? Date.parse(value) : Number.NaN;
-  return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER;
-}
-
-function getPickStatus(event: FantasyEvent) {
-  if (event.picks_locked) return 'Picks locked';
-  if (!event.picks_close_at) return 'Read-only preview';
-
-  const closeTime = Date.parse(event.picks_close_at);
-  if (!Number.isFinite(closeTime)) return 'Read-only preview';
-
-  return Date.now() >= closeTime ? 'Picks closed' : 'Picks open';
-}
-
-function sortUpcomingEvents(events: FantasyEvent[]) {
-  const now = Date.now();
-  const today = new Date().toISOString().slice(0, 10);
-
-  return events
-    .filter((event) => {
-      if (event.status === 'upcoming') return true;
-      if (event.starts_at && Date.parse(event.starts_at) > now) return true;
-      return Boolean(event.event_date && event.event_date >= today);
-    })
-    .sort((a, b) => getEventTimeValue(a) - getEventTimeValue(b));
-}
-
 export function FantasyScreen() {
-  const { user } = useAuth();
+  const { session, user } = useAuth();
   const [data, setData] = useState<FantasyLoadState>({
     apiNotice: null,
     events: [],
@@ -101,7 +64,7 @@ export function FantasyScreen() {
         .order('starts_at', { ascending: true, nullsFirst: false })
         .order('event_date', { ascending: true })
         .limit(20),
-      getFantasyLeaderboard(),
+      getFantasyLeaderboard(session?.access_token),
     ]);
 
     if (eventsResult.error) {
@@ -110,10 +73,10 @@ export function FantasyScreen() {
 
     setData({
       apiNotice: leaderboardResult.error,
-      events: sortUpcomingEvents((eventsResult.data ?? []) as FantasyEvent[]),
+      events: getUpcomingFantasyEvents((eventsResult.data ?? []) as FantasyEvent[]),
       leaderboard: leaderboardResult.standings,
     });
-  }, []);
+  }, [session?.access_token]);
 
   useEffect(() => {
     let mounted = true;
@@ -185,13 +148,13 @@ export function FantasyScreen() {
           <View style={styles.heroTop}>
             <Text style={styles.kicker}>Next card</Text>
             <Text style={styles.statusPill}>
-              {nextEvent ? getPickStatus(nextEvent) : 'Awaiting card'}
+              {getFantasyPickStatus(nextEvent)}
             </Text>
           </View>
           <Text style={styles.heroTitle}>{nextEvent?.name || 'No upcoming event'}</Text>
           <Text style={styles.heroMeta}>
             {nextEvent
-              ? `${formatEventDate(nextEvent.starts_at || nextEvent.event_date)} - ${nextEvent.fights?.length ?? 0} fights`
+              ? `${formatFantasyEventDate(nextEvent.starts_at || nextEvent.event_date)} - ${nextEvent.fights?.length ?? 0} fights`
               : 'Fantasy cards will appear here when they are scheduled.'}
           </Text>
           <View style={styles.disabledCta}>
@@ -220,9 +183,7 @@ export function FantasyScreen() {
 
           {data.apiNotice ? (
             <Text style={styles.noticeText}>{data.apiNotice}</Text>
-          ) : null}
-
-          {topLeaderboard.length > 0 ? (
+          ) : topLeaderboard.length > 0 ? (
             <View style={styles.leaderboardList}>
               {topLeaderboard.map((standing) => (
                 <LeaderboardRow key={`${standing.rank}-${standing.displayName}`} standing={standing} />
@@ -273,10 +234,10 @@ function EventRow({ event }: { event: FantasyEvent }) {
       <View style={styles.eventInfo}>
         <Text style={styles.eventName}>{event.name || 'Unnamed event'}</Text>
         <Text style={styles.eventMeta}>
-          {formatEventDate(event.starts_at || event.event_date)} - {event.fights?.length ?? 0} fights
+          {formatFantasyEventDate(event.starts_at || event.event_date)} - {event.fights?.length ?? 0} fights
         </Text>
       </View>
-      <Text style={styles.eventStatus}>{getPickStatus(event)}</Text>
+      <Text style={styles.eventStatus}>{getFantasyPickStatus(event)}</Text>
     </View>
   );
 }

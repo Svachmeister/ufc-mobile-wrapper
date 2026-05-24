@@ -13,6 +13,11 @@ import {
 } from 'react-native';
 
 import { useAuth } from '@/src/features/auth/AuthProvider';
+import {
+  formatFantasyEventDate,
+  getFantasyPickStatus,
+  getNextFantasyEvent,
+} from '@/src/lib/fantasyEvents';
 import { supabase } from '@/src/lib/supabase';
 import { colors, spacing } from '@/src/lib/theme/tokens';
 
@@ -37,45 +42,6 @@ type CollectionCounts = {
   owned: number;
   wanted: number;
 };
-
-function getNextEvent(events: DashboardEvent[]) {
-  const now = Date.now();
-  const futureByStart = events
-    .filter((event) => event.starts_at && Date.parse(event.starts_at) > now)
-    .sort((a, b) => Date.parse(a.starts_at || '') - Date.parse(b.starts_at || ''));
-
-  if (futureByStart[0]) return futureByStart[0];
-
-  const today = new Date().toISOString().slice(0, 10);
-  return events
-    .filter((event) => event.event_date && event.event_date >= today)
-    .sort((a, b) => String(a.event_date).localeCompare(String(b.event_date)))[0] ?? null;
-}
-
-function formatEventDate(value?: string | null) {
-  if (!value) return 'Date TBA';
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Date TBA';
-
-  return new Intl.DateTimeFormat('en-US', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
-}
-
-function formatPickStatus(event: DashboardEvent | null) {
-  if (!event) return 'Awaiting card';
-  if (event.picks_locked) return 'Picks closed';
-  if (!event.picks_close_at) return 'Picks open';
-
-  const closeTime = Date.parse(event.picks_close_at);
-  if (!Number.isFinite(closeTime)) return 'Picks open';
-  if (Date.now() >= closeTime) return 'Picks closed';
-
-  return 'Picks open';
-}
 
 export function HomeScreen() {
   const { signOut, user } = useAuth();
@@ -131,7 +97,7 @@ export function HomeScreen() {
       wanted: cards.filter((card) => card.status === 'wanted').length,
     });
 
-    setNextEvent(getNextEvent((eventsResult.data ?? []) as DashboardEvent[]));
+    setNextEvent(getNextFantasyEvent((eventsResult.data ?? []) as DashboardEvent[]));
   }, [user?.id]);
 
   useEffect(() => {
@@ -211,13 +177,13 @@ export function HomeScreen() {
         <View style={styles.panel}>
           <View style={styles.panelHeader}>
             <Text style={styles.kicker}>Next event</Text>
-            <Text style={styles.statusPill}>{formatPickStatus(nextEvent)}</Text>
+            <Text style={styles.statusPill}>{getFantasyPickStatus(nextEvent)}</Text>
           </View>
           <Text style={styles.eventTitle}>
             {isLoading ? 'Loading event' : nextEvent?.name || 'No upcoming event'}
           </Text>
           <Text style={styles.eventDate}>
-            {isLoading ? 'Checking schedule' : formatEventDate(nextEvent?.starts_at || nextEvent?.event_date)}
+            {isLoading ? 'Checking schedule' : formatFantasyEventDate(nextEvent?.starts_at || nextEvent?.event_date)}
           </Text>
         </View>
 
