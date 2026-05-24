@@ -37,6 +37,12 @@ export default function AppLayout() {
           tabBarLabel: 'Home',
         }}
       />
+      <Tabs.Screen
+        name="fantasy"
+        options={{
+          tabBarLabel: 'Fantasy',
+        }}
+      />
     </Tabs>
   );
 }
