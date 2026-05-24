@@ -12,7 +12,7 @@ export type NativeChecklistCard = {
 
 export type NativeChecklistSet = {
   brand: string | null;
-  cardCount: number;
+  cardCount: number | null;
   id: string;
   imageUrl: string | null;
   name: string;
@@ -23,18 +23,19 @@ export type NativeChecklistSet = {
 };
 
 export type NativeChecklistsData = {
-  cards: NativeChecklistCard[];
   sets: NativeChecklistSet[];
   summary: {
     owned: number;
     sets: number;
     wanted: number;
   };
+  userCardStatuses: Record<string, string | null>;
 };
 
 export type NativeChecklistWritableStatus = 'owned' | 'wanted';
 
-const CARD_PAGE_SIZE = 1000;
+export const CHECKLIST_CARD_PAGE_SIZE = 75;
+const USER_CARD_SET_CHUNK_SIZE = 500;
 
 function readString(record: Record<string, unknown> | null, keys: string[]) {
   if (!record) return null;
@@ -76,7 +77,7 @@ function normalizeSet(row: Record<string, unknown>): NativeChecklistSet {
 
   return {
     brand: readString(row, ['brand', 'manufacturer']),
-    cardCount: 0,
+    cardCount: null,
     id,
     imageUrl: readString(row, ['image_url', 'imageUrl', 'cover_url']),
     name: readString(row, ['name', 'title', 'set_name']) || 'Untitled set',
@@ -100,31 +101,127 @@ export function getCardsForSet(cards: NativeChecklistCard[], set: NativeChecklis
     .sort((a, b) => a.fighterName.localeCompare(b.fighterName));
 }
 
-async function loadChecklistCards() {
-  const cards: Record<string, unknown>[] = [];
-  let from = 0;
+function getUserCardStatusMap(rows: Record<string, unknown>[]) {
+  return Object.fromEntries(
+    rows
+      .map((row) => [readString(row, ['card_id']), readString(row, ['status'])] as const)
+      .filter((entry): entry is [string, string | null] => Boolean(entry[0])),
+  );
+}
 
-  while (true) {
+function getStatusCounts(statuses: Iterable<string | null>) {
+  const values = [...statuses];
+
+  return {
+    owned: values.filter((status) => status && OWNED_LIKE_STATUSES.has(status)).length,
+    wanted: values.filter((status) => status === 'wanted').length,
+  };
+}
+
+async function loadUserCardSetIds(cardIds: string[]) {
+  const setIdsByCardId = new Map<string, string>();
+
+  for (let index = 0; index < cardIds.length; index += USER_CARD_SET_CHUNK_SIZE) {
+    const chunk = cardIds.slice(index, index + USER_CARD_SET_CHUNK_SIZE);
     const { data, error } = await supabase
       .from('cards')
-      .select('id,set_id,fighter_name,card_number,variation')
-      .order('set_id', { ascending: true })
-      .range(from, from + CARD_PAGE_SIZE - 1);
+      .select('id,set_id')
+      .in('id', chunk);
 
     if (error) {
-      console.warn('Native checklists cards query failed', error.message);
-      return { cards, error: 'Card catalog failed to load.' };
+      console.warn('Native checklists user card set lookup failed', error.message);
+      return { error: 'Checklist counts failed to load.', setIdsByCardId };
     }
 
-    const page = (data ?? []) as Record<string, unknown>[];
-    cards.push(...page);
+    ((data ?? []) as Record<string, unknown>[]).forEach((card) => {
+      const cardId = readString(card, ['id']);
+      const setId = readString(card, ['set_id']);
 
-    if (page.length < CARD_PAGE_SIZE) {
-      return { cards, error: null };
-    }
-
-    from += CARD_PAGE_SIZE;
+      if (cardId && setId) setIdsByCardId.set(cardId, setId);
+    });
   }
+
+  return { error: null, setIdsByCardId };
+}
+
+function applySetOwnershipCounts(
+  sets: NativeChecklistSet[],
+  userCardStatuses: Record<string, string | null>,
+  setIdsByCardId: Map<string, string>,
+) {
+  const countsBySetId = new Map<string, { owned: number; wanted: number }>();
+
+  Object.entries(userCardStatuses).forEach(([cardId, status]) => {
+    const setId = setIdsByCardId.get(cardId);
+    if (!setId) return;
+
+    const counts = countsBySetId.get(setId) ?? { owned: 0, wanted: 0 };
+    if (status && OWNED_LIKE_STATUSES.has(status)) counts.owned += 1;
+    if (status === 'wanted') counts.wanted += 1;
+    countsBySetId.set(setId, counts);
+  });
+
+  return sets.map((set) => {
+    const counts = countsBySetId.get(set.id);
+
+    return {
+      ...set,
+      ownedCount: counts?.owned ?? 0,
+      wantedCount: counts?.wanted ?? 0,
+    };
+  });
+}
+
+export async function loadNativeSetCards({
+  from = 0,
+  pageSize = CHECKLIST_CARD_PAGE_SIZE,
+  setId,
+  userCardStatuses,
+}: {
+  from?: number;
+  pageSize?: number;
+  setId: string;
+  userCardStatuses: Record<string, string | null>;
+}) {
+  const { count, data, error } = await supabase
+    .from('cards')
+    .select('id,set_id,fighter_name,card_number,variation', { count: 'exact' })
+    .eq('set_id', setId)
+    .order('card_number', { ascending: true })
+    .order('fighter_name', { ascending: true })
+    .range(from, from + pageSize - 1);
+
+  if (error) {
+    console.warn('Native checklist set cards query failed', error.message);
+
+    return {
+      cards: [] as NativeChecklistCard[],
+      error: 'Could not load cards for this set.',
+      hasMore: false,
+      nextFrom: from,
+      totalCount: null as number | null,
+    };
+  }
+
+  const cards = ((data ?? []) as Record<string, unknown>[]).map((row) => {
+    const normalized = normalizeCard(row);
+    return {
+      ...normalized,
+      status: userCardStatuses[normalized.cardId] ?? null,
+    };
+  });
+  const nextFrom = from + cards.length;
+  const hasMore = typeof count === 'number'
+    ? nextFrom < count
+    : cards.length === pageSize;
+
+  return {
+    cards,
+    error: null,
+    hasMore,
+    nextFrom,
+    totalCount: count ?? null,
+  };
 }
 
 export function getNextChecklistStatus(status: string | null): NativeChecklistWritableStatus | null {
@@ -188,9 +285,9 @@ export async function loadNativeChecklists(userId: string) {
 
     return {
       data: {
-        cards: [],
         sets: [],
         summary: { owned: 0, sets: 0, wanted: 0 },
+        userCardStatuses: {},
       } as NativeChecklistsData,
       error: 'Could not load checklist sets.',
     };
@@ -198,60 +295,40 @@ export async function loadNativeChecklists(userId: string) {
 
   const rawSets = (setsResult.data ?? []) as Record<string, unknown>[];
   const normalizedSets = rawSets.map(normalizeSet);
-  const cardsResult = await loadChecklistCards();
 
   if (userCardsResult.error) {
     console.warn('Native checklists user_cards query failed', userCardsResult.error.message);
 
     return {
       data: {
-        cards: cardsResult.cards.map((row) => normalizeCard(row)),
         sets: normalizedSets,
         summary: { owned: 0, sets: normalizedSets.length, wanted: 0 },
+        userCardStatuses: {},
       } as NativeChecklistsData,
       error: 'Could not load your checklist status.',
     };
   }
 
-  const userCardStatusesById = new Map(
-    ((userCardsResult.data ?? []) as Record<string, unknown>[])
-      .map((row) => [readString(row, ['card_id']), readString(row, ['status'])] as const)
-      .filter((entry): entry is [string, string | null] => Boolean(entry[0])),
-  );
-  const cards = cardsResult.cards.map((row) => {
-    const normalized = normalizeCard(row);
-    return {
-      ...normalized,
-      status: userCardStatusesById.get(normalized.cardId) ?? null,
-    };
-  });
-  const sets = normalizedSets
-    .map((set) => {
-      const setCards = getCardsForSet(cards, set);
-
-      return {
-        ...set,
-        cardCount: setCards.length,
-        ownedCount: setCards.filter((card) => card.status && OWNED_LIKE_STATUSES.has(card.status)).length,
-        wantedCount: setCards.filter((card) => card.status === 'wanted').length,
-      };
-    })
+  const userCardStatuses = getUserCardStatusMap((userCardsResult.data ?? []) as Record<string, unknown>[]);
+  const userCardSetResult = await loadUserCardSetIds(Object.keys(userCardStatuses));
+  const sets = applySetOwnershipCounts(normalizedSets, userCardStatuses, userCardSetResult.setIdsByCardId)
     .sort((a, b) => {
       const yearCompare = String(b.year || '').localeCompare(String(a.year || ''));
       if (yearCompare !== 0) return yearCompare;
       return a.name.localeCompare(b.name);
     });
+  const summary = getStatusCounts(Object.values(userCardStatuses));
 
   return {
     data: {
-      cards,
       sets,
       summary: {
-        owned: cards.filter((card) => card.status && OWNED_LIKE_STATUSES.has(card.status)).length,
+        owned: summary.owned,
         sets: sets.length,
-        wanted: cards.filter((card) => card.status === 'wanted').length,
+        wanted: summary.wanted,
       },
+      userCardStatuses,
     },
-    error: cardsResult.error,
+    error: userCardSetResult.error,
   };
 }
