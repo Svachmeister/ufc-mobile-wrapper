@@ -65,7 +65,7 @@ export function FantasyScreen() {
     const [eventsResult, leaderboardResult] = await Promise.all([
       supabase
         .from('events')
-        .select('id,name,status,event_date,starts_at,picks_close_at,picks_locked,fights(id)')
+        .select('id,name,status,event_date,starts_at,picks_close_at,picks_locked')
         .or('status.eq.upcoming,starts_at.not.is.null,event_date.not.is.null')
         .order('starts_at', { ascending: true, nullsFirst: false })
         .order('event_date', { ascending: true })
@@ -77,9 +77,35 @@ export function FantasyScreen() {
       setError('Could not load fantasy events.');
     }
 
+    const events = (eventsResult.data ?? []) as FantasyEvent[];
+    const eventIds = events.map((event) => event.id);
+    const fightsByEventId = new Map<string, { id: string }[]>();
+
+    if (eventIds.length > 0) {
+      const { data: fightsData, error: fightsError } = await supabase
+        .from('fights')
+        .select('id,event_id')
+        .in('event_id', eventIds)
+        .limit(500);
+
+      if (fightsError) {
+        setError('Could not load fantasy fight counts.');
+      } else {
+        ((fightsData ?? []) as { event_id?: string | null; id: string }[]).forEach((fight) => {
+          if (!fight.event_id) return;
+          const existing = fightsByEventId.get(fight.event_id) ?? [];
+          existing.push({ id: fight.id });
+          fightsByEventId.set(fight.event_id, existing);
+        });
+      }
+    }
+
     setData({
       apiNotice: leaderboardResult.error,
-      events: getUpcomingFantasyEvents((eventsResult.data ?? []) as FantasyEvent[]),
+      events: getUpcomingFantasyEvents(events.map((event) => ({
+        ...event,
+        fights: fightsByEventId.get(event.id) ?? [],
+      }))),
       leaderboard: leaderboardResult.standings,
     });
   }, [session?.access_token]);

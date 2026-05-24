@@ -17,11 +17,6 @@ export type NativeCollectionSummary = {
   wanted: number;
 };
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
-}
-
 function readString(record: Record<string, unknown> | null, keys: string[]) {
   if (!record) return null;
 
@@ -34,12 +29,6 @@ function readString(record: Record<string, unknown> | null, keys: string[]) {
   return null;
 }
 
-function getEmbeddedCard(row: Record<string, unknown>) {
-  const cards = row.cards;
-  if (Array.isArray(cards)) return asRecord(cards[0]);
-  return asRecord(cards);
-}
-
 function getCardDetail(card: Record<string, unknown> | null) {
   const setName = readString(card, ['set_name', 'set', 'set_title', 'collection_name']);
   const cardNumber = readString(card, ['card_number', 'number', 'card_no']);
@@ -49,8 +38,11 @@ function getCardDetail(card: Record<string, unknown> | null) {
   return parts.join(' - ') || 'Card details pending';
 }
 
-function normalizeCollectionRow(row: Record<string, unknown>, index: number): NativeCollectionCard {
-  const card = getEmbeddedCard(row);
+function normalizeCollectionRow(
+  row: Record<string, unknown>,
+  index: number,
+  card: Record<string, unknown> | null = null,
+): NativeCollectionCard {
   const status = readString(row, ['status']);
   const rowId = readString(row, ['id']) || `${readString(row, ['card_id']) || 'card'}-${index}`;
   const cardId = readString(row, ['card_id']) || readString(card, ['id']);
@@ -78,13 +70,13 @@ export function summarizeCollection(cards: NativeCollectionCard[]): NativeCollec
 }
 
 export async function loadNativeCollection(userId: string) {
-  const { data, error } = await supabase
+  const { data: userCardsData, error: userCardsError } = await supabase
     .from('user_cards')
-    .select('*, cards(*)')
+    .select('id,card_id,status')
     .eq('user_id', userId)
     .limit(120);
 
-  if (error) {
+  if (userCardsError) {
     return {
       cards: [] as NativeCollectionCard[],
       error: 'Could not load collection.',
@@ -92,7 +84,36 @@ export async function loadNativeCollection(userId: string) {
     };
   }
 
-  const cards = ((data ?? []) as Record<string, unknown>[]).map(normalizeCollectionRow);
+  const userCards = (userCardsData ?? []) as Record<string, unknown>[];
+  const cardIds = userCards
+    .map((row) => readString(row, ['card_id']))
+    .filter((cardId): cardId is string => Boolean(cardId));
+  const cardRowsById = new Map<string, Record<string, unknown>>();
+
+  if (cardIds.length > 0) {
+    const { data: cardsData, error: cardsError } = await supabase
+      .from('cards')
+      .select('*')
+      .in('id', cardIds);
+
+    if (cardsError) {
+      return {
+        cards: [] as NativeCollectionCard[],
+        error: 'Could not load collection card details.',
+        summary: { owned: 0, ownedLike: 0, wanted: 0 },
+      };
+    }
+
+    ((cardsData ?? []) as Record<string, unknown>[]).forEach((card) => {
+      const id = readString(card, ['id']);
+      if (id) cardRowsById.set(id, card);
+    });
+  }
+
+  const cards = userCards.map((row, index) => {
+    const cardId = readString(row, ['card_id']);
+    return normalizeCollectionRow(row, index, cardId ? cardRowsById.get(cardId) ?? null : null);
+  });
 
   return {
     cards,

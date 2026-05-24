@@ -34,11 +34,6 @@ export type NativeChecklistsData = {
 
 export type NativeChecklistWritableStatus = 'owned' | 'wanted';
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
-}
-
 function readString(record: Record<string, unknown> | null, keys: string[]) {
   if (!record) return null;
 
@@ -49,12 +44,6 @@ function readString(record: Record<string, unknown> | null, keys: string[]) {
   }
 
   return null;
-}
-
-function getEmbeddedCard(row: Record<string, unknown>) {
-  const cards = row.cards;
-  if (Array.isArray(cards)) return asRecord(cards[0]);
-  return asRecord(cards);
 }
 
 function getSetId(card: Record<string, unknown> | null) {
@@ -168,35 +157,54 @@ export async function loadNativeChecklists(userId: string) {
       .limit(2500),
     supabase
       .from('user_cards')
-      .select('status,card_id,cards(id,set_id,set_name,fighter_name,card_number,variation)')
+      .select('status,card_id')
       .eq('user_id', userId)
       .limit(2500),
   ]);
 
-  if (setsResult.error || cardsResult.error || userCardsResult.error) {
+  if (setsResult.error) {
     return {
       data: {
         cards: [],
         sets: [],
         summary: { owned: 0, sets: 0, wanted: 0 },
       } as NativeChecklistsData,
-      error: 'Could not load checklists.',
+      error: 'Could not load checklist sets.',
     };
   }
 
-  const userCards = ((userCardsResult.data ?? []) as Record<string, unknown>[])
-    .map((row) => {
-      const card = getEmbeddedCard(row);
-      const status = readString(row, ['status']);
-      return card ? normalizeCard(card, status) : null;
-    })
-    .filter((card): card is NativeChecklistCard => Boolean(card));
-  const userCardsById = new Map(userCards.map((card) => [card.cardId, card]));
+  if (cardsResult.error) {
+    return {
+      data: {
+        cards: [],
+        sets: ((setsResult.data ?? []) as Record<string, unknown>[]).map(normalizeSet),
+        summary: { owned: 0, sets: (setsResult.data ?? []).length, wanted: 0 },
+      } as NativeChecklistsData,
+      error: 'Could not load checklist cards.',
+    };
+  }
+
+  if (userCardsResult.error) {
+    return {
+      data: {
+        cards: ((cardsResult.data ?? []) as Record<string, unknown>[]).map((row) => normalizeCard(row)),
+        sets: ((setsResult.data ?? []) as Record<string, unknown>[]).map(normalizeSet),
+        summary: { owned: 0, sets: (setsResult.data ?? []).length, wanted: 0 },
+      } as NativeChecklistsData,
+      error: 'Could not load your checklist status.',
+    };
+  }
+
+  const userCardStatusesById = new Map(
+    ((userCardsResult.data ?? []) as Record<string, unknown>[])
+      .map((row) => [readString(row, ['card_id']), readString(row, ['status'])] as const)
+      .filter((entry): entry is [string, string | null] => Boolean(entry[0])),
+  );
   const cards = ((cardsResult.data ?? []) as Record<string, unknown>[]).map((row) => {
     const normalized = normalizeCard(row);
     return {
       ...normalized,
-      status: userCardsById.get(normalized.cardId)?.status ?? null,
+      status: userCardStatusesById.get(normalized.cardId) ?? null,
     };
   });
   const sets = ((setsResult.data ?? []) as Record<string, unknown>[])
@@ -222,9 +230,9 @@ export async function loadNativeChecklists(userId: string) {
       cards,
       sets,
       summary: {
-        owned: userCards.filter((card) => card.status && OWNED_LIKE_STATUSES.has(card.status)).length,
+        owned: [...userCardStatusesById.values()].filter((status) => status && OWNED_LIKE_STATUSES.has(status)).length,
         sets: sets.length,
-        wanted: userCards.filter((card) => card.status === 'wanted').length,
+        wanted: [...userCardStatusesById.values()].filter((status) => status === 'wanted').length,
       },
     },
     error: null,
