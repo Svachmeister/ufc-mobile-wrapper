@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -97,6 +97,7 @@ function applyCardStatus(data: SetsState, cardId: string, status: string | null)
 
 export function SetsScreen() {
   const { user } = useAuth();
+  const scrollViewRef = useRef<ScrollView>(null);
   const [data, setData] = useState<SetsState>(emptyState);
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -143,6 +144,13 @@ export function SetsScreen() {
     router.push('/web-fallback' as never);
   };
 
+  const selectSet = useCallback((setId: string) => {
+    setSelectedSetId(setId);
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    });
+  }, []);
+
   const handleToggleCard = useCallback(async (card: NativeChecklistCard) => {
     if (!user?.id || updatingCardIds.has(card.cardId)) return;
 
@@ -185,6 +193,7 @@ export function SetsScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
@@ -202,9 +211,9 @@ export function SetsScreen() {
         {error ? (
           <ScreenState
             actionLabel="Try again"
-            message="The native checklist catalog did not load. Pull to refresh or retry."
+            message={error}
             onAction={loadSets}
-            title="Sets unavailable"
+            title={data.sets.length > 0 ? 'Checklist warning' : 'Sets unavailable'}
           />
         ) : null}
 
@@ -216,7 +225,7 @@ export function SetsScreen() {
             {data.sets.length > 0 ? 'Browse the catalog' : 'Catalog coming soon'}
           </Text>
           <Text style={styles.heroText}>
-            Read-only set browsing is live. Ownership and wanted toggles stay disabled until the next collection milestone.
+            Tap a checklist card to cycle missing, owned, and wanted.
           </Text>
         </View>
 
@@ -238,7 +247,7 @@ export function SetsScreen() {
                 <SetRow
                   key={set.id}
                   isSelected={set.id === selectedSetId}
-                  onPress={() => setSelectedSetId(set.id)}
+                  onPress={() => selectSet(set.id)}
                   set={set}
                 />
               ))}

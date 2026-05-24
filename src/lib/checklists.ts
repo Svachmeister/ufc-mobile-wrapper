@@ -34,6 +34,8 @@ export type NativeChecklistsData = {
 
 export type NativeChecklistWritableStatus = 'owned' | 'wanted';
 
+const CARD_PAGE_SIZE = 1000;
+
 function readString(record: Record<string, unknown> | null, keys: string[]) {
   if (!record) return null;
 
@@ -47,11 +49,7 @@ function readString(record: Record<string, unknown> | null, keys: string[]) {
 }
 
 function getSetId(card: Record<string, unknown> | null) {
-  return readString(card, ['set_id', 'setId', 'set']);
-}
-
-function getSetName(card: Record<string, unknown> | null) {
-  return readString(card, ['set_name', 'set_title', 'setName', 'collection_name']);
+  return readString(card, ['set_id', 'setId']);
 }
 
 function getCardDetail(card: Record<string, unknown> | null) {
@@ -68,7 +66,7 @@ function normalizeCard(row: Record<string, unknown>, status: string | null = nul
     detail: getCardDetail(row),
     fighterName: readString(row, ['fighter_name', 'name', 'title']) || 'Unknown fighter',
     setId: getSetId(row),
-    setName: getSetName(row),
+    setName: null,
     status,
   };
 }
@@ -90,16 +88,43 @@ function normalizeSet(row: Record<string, unknown>): NativeChecklistSet {
 }
 
 function getCardSetKey(card: NativeChecklistCard) {
-  return card.setId || card.setName || null;
+  return card.setId || null;
 }
 
 export function getCardsForSet(cards: NativeChecklistCard[], set: NativeChecklistSet) {
   return cards
     .filter((card) => {
       const cardKey = getCardSetKey(card);
-      return cardKey === set.id || card.setName === set.name;
+      return cardKey === set.id;
     })
     .sort((a, b) => a.fighterName.localeCompare(b.fighterName));
+}
+
+async function loadChecklistCards() {
+  const cards: Record<string, unknown>[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('cards')
+      .select('id,set_id,fighter_name,card_number,variation')
+      .order('set_id', { ascending: true })
+      .range(from, from + CARD_PAGE_SIZE - 1);
+
+    if (error) {
+      console.warn('Native checklists cards query failed', error.message);
+      return { cards, error: 'Card catalog failed to load.' };
+    }
+
+    const page = (data ?? []) as Record<string, unknown>[];
+    cards.push(...page);
+
+    if (page.length < CARD_PAGE_SIZE) {
+      return { cards, error: null };
+    }
+
+    from += CARD_PAGE_SIZE;
+  }
 }
 
 export function getNextChecklistStatus(status: string | null): NativeChecklistWritableStatus | null {
@@ -146,15 +171,11 @@ export async function saveNativeChecklistStatus({
 }
 
 export async function loadNativeChecklists(userId: string) {
-  const [setsResult, cardsResult, userCardsResult] = await Promise.all([
+  const [setsResult, userCardsResult] = await Promise.all([
     supabase
       .from('sets')
       .select('*')
       .limit(80),
-    supabase
-      .from('cards')
-      .select('id,set_id,set_name,fighter_name,card_number,variation')
-      .limit(2500),
     supabase
       .from('user_cards')
       .select('status,card_id')
@@ -163,6 +184,8 @@ export async function loadNativeChecklists(userId: string) {
   ]);
 
   if (setsResult.error) {
+    console.warn('Native checklists sets query failed', setsResult.error.message);
+
     return {
       data: {
         cards: [],
@@ -173,23 +196,18 @@ export async function loadNativeChecklists(userId: string) {
     };
   }
 
-  if (cardsResult.error) {
-    return {
-      data: {
-        cards: [],
-        sets: ((setsResult.data ?? []) as Record<string, unknown>[]).map(normalizeSet),
-        summary: { owned: 0, sets: (setsResult.data ?? []).length, wanted: 0 },
-      } as NativeChecklistsData,
-      error: 'Could not load checklist cards.',
-    };
-  }
+  const rawSets = (setsResult.data ?? []) as Record<string, unknown>[];
+  const normalizedSets = rawSets.map(normalizeSet);
+  const cardsResult = await loadChecklistCards();
 
   if (userCardsResult.error) {
+    console.warn('Native checklists user_cards query failed', userCardsResult.error.message);
+
     return {
       data: {
-        cards: ((cardsResult.data ?? []) as Record<string, unknown>[]).map((row) => normalizeCard(row)),
-        sets: ((setsResult.data ?? []) as Record<string, unknown>[]).map(normalizeSet),
-        summary: { owned: 0, sets: (setsResult.data ?? []).length, wanted: 0 },
+        cards: cardsResult.cards.map((row) => normalizeCard(row)),
+        sets: normalizedSets,
+        summary: { owned: 0, sets: normalizedSets.length, wanted: 0 },
       } as NativeChecklistsData,
       error: 'Could not load your checklist status.',
     };
@@ -200,15 +218,14 @@ export async function loadNativeChecklists(userId: string) {
       .map((row) => [readString(row, ['card_id']), readString(row, ['status'])] as const)
       .filter((entry): entry is [string, string | null] => Boolean(entry[0])),
   );
-  const cards = ((cardsResult.data ?? []) as Record<string, unknown>[]).map((row) => {
+  const cards = cardsResult.cards.map((row) => {
     const normalized = normalizeCard(row);
     return {
       ...normalized,
       status: userCardStatusesById.get(normalized.cardId) ?? null,
     };
   });
-  const sets = ((setsResult.data ?? []) as Record<string, unknown>[])
-    .map(normalizeSet)
+  const sets = normalizedSets
     .map((set) => {
       const setCards = getCardsForSet(cards, set);
 
@@ -230,11 +247,11 @@ export async function loadNativeChecklists(userId: string) {
       cards,
       sets,
       summary: {
-        owned: [...userCardStatusesById.values()].filter((status) => status && OWNED_LIKE_STATUSES.has(status)).length,
+        owned: cards.filter((card) => card.status && OWNED_LIKE_STATUSES.has(card.status)).length,
         sets: sets.length,
-        wanted: [...userCardStatusesById.values()].filter((status) => status === 'wanted').length,
+        wanted: cards.filter((card) => card.status === 'wanted').length,
       },
     },
-    error: null,
+    error: cardsResult.error,
   };
 }
