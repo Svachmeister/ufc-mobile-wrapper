@@ -49,6 +49,12 @@ export default function AppLayout() {
           tabBarLabel: 'Collection',
         }}
       />
+      <Tabs.Screen
+        name="sets"
+        options={{
+          tabBarLabel: 'Sets',
+        }}
+      />
     </Tabs>
   );
 }
