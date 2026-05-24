@@ -11,6 +11,12 @@ import {
   View,
 } from 'react-native';
 
+import {
+  ScreenHeader,
+  StatTile,
+  WebFallbackButton,
+  sharedScreenStyles,
+} from '@/src/components/ui/NativePrimitives';
 import { LoadingScreen, ScreenState } from '@/src/components/ui/ScreenState';
 import { useAuth } from '@/src/features/auth/AuthProvider';
 import {
@@ -20,7 +26,7 @@ import {
   loadNativeChecklists,
 } from '@/src/lib/checklists';
 import { OWNED_LIKE_STATUSES } from '@/src/lib/collection';
-import { colors, spacing } from '@/src/lib/theme/tokens';
+import { colors } from '@/src/lib/theme/tokens';
 
 type SetsState = {
   cards: NativeChecklistCard[];
@@ -131,15 +137,10 @@ export function SetsScreen() {
           />
         }
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.kicker}>Fight Card Society</Text>
-            <Text style={styles.title}>Sets</Text>
-          </View>
-          <Pressable hitSlop={10} onPress={openWebFallback} style={styles.webButton}>
-            <Text style={styles.webButtonText}>WebView</Text>
-          </Pressable>
-        </View>
+        <ScreenHeader
+          action={<WebFallbackButton onPress={openWebFallback} />}
+          title="Sets"
+        />
 
         {error ? (
           <ScreenState
@@ -161,9 +162,9 @@ export function SetsScreen() {
         </View>
 
         <View style={styles.grid}>
-          <StatBlock label="Sets" value={String(data.summary.sets)} />
-          <StatBlock label="Owned" value={String(data.summary.owned)} />
-          <StatBlock label="Wanted" value={String(data.summary.wanted)} />
+          <StatTile label="Sets" value={String(data.summary.sets)} />
+          <StatTile label="Owned" value={String(data.summary.owned)} />
+          <StatTile label="Wanted" value={String(data.summary.wanted)} />
         </View>
 
         <View style={styles.panel}>
@@ -282,15 +283,6 @@ function SetRow({
   );
 }
 
-function StatBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.statBlock}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   cardDetail: {
     color: colors.muted,
@@ -345,11 +337,6 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     gap: 8,
-  },
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
   },
   hero: {
     backgroundColor: colors.panel,
@@ -419,10 +406,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   scrollContent: {
-    gap: 14,
-    paddingBottom: 28,
-    paddingHorizontal: spacing.screenX,
-    paddingTop: 16,
+    ...sharedScreenStyles.scrollContent,
   },
   sectionTitle: {
     color: colors.text,
@@ -483,26 +467,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textTransform: 'uppercase',
   },
-  statBlock: {
-    backgroundColor: colors.panelSoft,
-    borderColor: colors.border,
-    borderWidth: 1,
-    flex: 1,
-    padding: 13,
-  },
-  statLabel: {
-    color: colors.muted,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.1,
-    marginTop: 5,
-    textTransform: 'uppercase',
-  },
-  statValue: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: '900',
-  },
   statusBadge: {
     borderColor: 'rgba(220,38,38,0.35)',
     borderWidth: 1,
@@ -513,28 +477,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     textAlign: 'right',
-    textTransform: 'uppercase',
-  },
-  title: {
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: '900',
-    letterSpacing: -0.3,
-    lineHeight: 34,
-    marginTop: 2,
-    textTransform: 'uppercase',
-  },
-  webButton: {
-    borderColor: colors.border,
-    borderWidth: 1,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-  },
-  webButtonText: {
-    color: colors.textSoft,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
 });

@@ -11,10 +11,15 @@ import {
   View,
 } from 'react-native';
 
+import {
+  ScreenHeader,
+  WebFallbackButton,
+  sharedScreenStyles,
+} from '@/src/components/ui/NativePrimitives';
 import { LoadingScreen, ScreenState } from '@/src/components/ui/ScreenState';
 import { useAuth } from '@/src/features/auth/AuthProvider';
 import { type NativeProfile, loadNativeProfile } from '@/src/lib/profile';
-import { colors, spacing } from '@/src/lib/theme/tokens';
+import { colors } from '@/src/lib/theme/tokens';
 
 function shortenUserId(value?: string | null) {
   if (!value) return 'Unavailable';
@@ -104,15 +109,10 @@ export function ProfileScreen() {
           />
         }
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.kicker}>Fight Card Society</Text>
-            <Text style={styles.title}>Profile</Text>
-          </View>
-          <Pressable hitSlop={10} onPress={openWebFallback} style={styles.webButton}>
-            <Text style={styles.webButtonText}>WebView</Text>
-          </Pressable>
-        </View>
+        <ScreenHeader
+          action={<WebFallbackButton onPress={openWebFallback} />}
+          title="Profile"
+        />
 
         {error ? (
           <ScreenState
@@ -158,9 +158,12 @@ export function ProfileScreen() {
           <Text style={styles.panelText}>
             Username, country, avatar, and profile details are view-only in this native milestone.
           </Text>
-          <Pressable style={styles.secondaryButton} onPress={openWebFallback}>
-            <Text style={styles.secondaryButtonText}>Open WebView fallback</Text>
-          </Pressable>
+          <WebFallbackButton
+            label="Open WebView fallback"
+            onPress={openWebFallback}
+            style={styles.secondaryButton}
+            textStyle={styles.secondaryButtonText}
+          />
         </View>
 
         <View style={styles.panel}>
@@ -216,11 +219,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 18,
     marginTop: 12,
-  },
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
   },
   hero: {
     backgroundColor: colors.panel,
@@ -307,10 +305,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   scrollContent: {
-    gap: 14,
-    paddingBottom: 28,
-    paddingHorizontal: spacing.screenX,
-    paddingTop: 16,
+    ...sharedScreenStyles.scrollContent,
   },
   secondaryButton: {
     alignItems: 'center',
@@ -361,27 +356,5 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 26,
     fontWeight: '900',
-  },
-  title: {
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: '900',
-    letterSpacing: -0.3,
-    lineHeight: 34,
-    marginTop: 2,
-    textTransform: 'uppercase',
-  },
-  webButton: {
-    borderColor: colors.border,
-    borderWidth: 1,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-  },
-  webButtonText: {
-    color: colors.textSoft,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.1,
-    textTransform: 'uppercase',
   },
 });

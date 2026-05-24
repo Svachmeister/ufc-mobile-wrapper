@@ -12,6 +12,12 @@ import {
   View,
 } from 'react-native';
 
+import {
+  ScreenHeader,
+  StatTile,
+  WebFallbackButton,
+  sharedScreenStyles,
+} from '@/src/components/ui/NativePrimitives';
 import { LoadingScreen, ScreenState } from '@/src/components/ui/ScreenState';
 import { useAuth } from '@/src/features/auth/AuthProvider';
 import {
@@ -21,7 +27,7 @@ import {
   loadNativeFighters,
 } from '@/src/lib/fighters';
 import { OWNED_LIKE_STATUSES } from '@/src/lib/collection';
-import { colors, spacing } from '@/src/lib/theme/tokens';
+import { colors } from '@/src/lib/theme/tokens';
 
 type FightersState = {
   cards: NativeFighterCard[];
@@ -139,15 +145,10 @@ export function FightersScreen() {
           />
         }
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.kicker}>Fight Card Society</Text>
-            <Text style={styles.title}>Fighters</Text>
-          </View>
-          <Pressable hitSlop={10} onPress={openWebFallback} style={styles.webButton}>
-            <Text style={styles.webButtonText}>WebView</Text>
-          </Pressable>
-        </View>
+        <ScreenHeader
+          action={<WebFallbackButton onPress={openWebFallback} />}
+          title="Fighters"
+        />
 
         {error ? (
           <ScreenState
@@ -169,9 +170,9 @@ export function FightersScreen() {
         </View>
 
         <View style={styles.grid}>
-          <StatBlock label="Fighters" value={String(data.summary.fighters)} />
-          <StatBlock label="Owned" value={String(data.summary.owned)} />
-          <StatBlock label="Wanted" value={String(data.summary.wanted)} />
+          <StatTile label="Fighters" value={String(data.summary.fighters)} />
+          <StatTile label="Owned" value={String(data.summary.owned)} />
+          <StatTile label="Wanted" value={String(data.summary.wanted)} />
         </View>
 
         <View style={styles.panel}>
@@ -305,15 +306,6 @@ function MiniStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.statBlock}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   cardDetail: {
     color: colors.muted,
@@ -408,11 +400,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
   hero: {
     backgroundColor: colors.panel,
     borderColor: 'rgba(255,255,255,0.1)',
@@ -498,10 +485,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   scrollContent: {
-    gap: 14,
-    paddingBottom: 28,
-    paddingHorizontal: spacing.screenX,
-    paddingTop: 16,
+    ...sharedScreenStyles.scrollContent,
   },
   searchInput: {
     backgroundColor: colors.panelSoft,
@@ -523,26 +507,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textTransform: 'uppercase',
   },
-  statBlock: {
-    backgroundColor: colors.panelSoft,
-    borderColor: colors.border,
-    borderWidth: 1,
-    flex: 1,
-    padding: 13,
-  },
-  statLabel: {
-    color: colors.muted,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.1,
-    marginTop: 5,
-    textTransform: 'uppercase',
-  },
-  statValue: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: '900',
-  },
   statusBadge: {
     borderColor: 'rgba(220,38,38,0.35)',
     borderWidth: 1,
@@ -553,28 +517,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     textAlign: 'right',
-    textTransform: 'uppercase',
-  },
-  title: {
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: '900',
-    letterSpacing: -0.3,
-    lineHeight: 34,
-    marginTop: 2,
-    textTransform: 'uppercase',
-  },
-  webButton: {
-    borderColor: colors.border,
-    borderWidth: 1,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-  },
-  webButtonText: {
-    color: colors.textSoft,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
 });

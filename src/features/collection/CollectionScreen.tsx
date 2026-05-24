@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Pressable,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -11,6 +10,12 @@ import {
   View,
 } from 'react-native';
 
+import {
+  ScreenHeader,
+  StatTile,
+  WebFallbackButton,
+  sharedScreenStyles,
+} from '@/src/components/ui/NativePrimitives';
 import { LoadingScreen, ScreenState } from '@/src/components/ui/ScreenState';
 import { useAuth } from '@/src/features/auth/AuthProvider';
 import {
@@ -19,7 +24,7 @@ import {
   OWNED_LIKE_STATUSES,
   loadNativeCollection,
 } from '@/src/lib/collection';
-import { colors, spacing } from '@/src/lib/theme/tokens';
+import { colors } from '@/src/lib/theme/tokens';
 
 type CollectionState = {
   cards: NativeCollectionCard[];
@@ -108,15 +113,10 @@ export function CollectionScreen() {
           />
         }
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.kicker}>Fight Card Society</Text>
-            <Text style={styles.title}>Collection</Text>
-          </View>
-          <Pressable hitSlop={10} onPress={openWebFallback} style={styles.webButton}>
-            <Text style={styles.webButtonText}>WebView</Text>
-          </Pressable>
-        </View>
+        <ScreenHeader
+          action={<WebFallbackButton onPress={openWebFallback} />}
+          title="Collection"
+        />
 
         {error ? (
           <ScreenState
@@ -138,9 +138,9 @@ export function CollectionScreen() {
         </View>
 
         <View style={styles.grid}>
-          <StatBlock label="Owned" value={String(collection.summary.owned)} />
-          <StatBlock label="Owned-like" value={String(collection.summary.ownedLike)} />
-          <StatBlock label="Wanted" value={String(collection.summary.wanted)} />
+          <StatTile label="Owned" value={String(collection.summary.owned)} />
+          <StatTile label="Owned-like" value={String(collection.summary.ownedLike)} />
+          <StatTile label="Wanted" value={String(collection.summary.wanted)} />
         </View>
 
         <View style={styles.panel}>
@@ -183,9 +183,12 @@ export function CollectionScreen() {
           <Text style={styles.panelText}>
             The next native collection milestone can add set browsing and checklist detail screens. This pass only reads your current card rows.
           </Text>
-          <Pressable style={styles.secondaryButton} onPress={openWebFallback}>
-            <Text style={styles.secondaryButtonText}>Open WebView fallback</Text>
-          </Pressable>
+          <WebFallbackButton
+            label="Open WebView fallback"
+            onPress={openWebFallback}
+            style={styles.secondaryButton}
+            textStyle={styles.secondaryButtonText}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -204,15 +207,6 @@ function CollectionCardRow({ card }: { card: NativeCollectionCard }) {
         </Text>
       </View>
       <Text style={styles.statusBadge}>{formatStatus(card.status)}</Text>
-    </View>
-  );
-}
-
-function StatBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.statBlock}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
@@ -267,11 +261,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
   hero: {
     backgroundColor: colors.panel,
     borderColor: 'rgba(255,255,255,0.1)',
@@ -320,10 +309,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   scrollContent: {
-    gap: 14,
-    paddingBottom: 28,
-    paddingHorizontal: spacing.screenX,
-    paddingTop: 16,
+    ...sharedScreenStyles.scrollContent,
   },
   secondaryButton: {
     alignItems: 'center',
@@ -350,26 +336,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textTransform: 'uppercase',
   },
-  statBlock: {
-    backgroundColor: colors.panelSoft,
-    borderColor: colors.border,
-    borderWidth: 1,
-    flex: 1,
-    padding: 13,
-  },
-  statLabel: {
-    color: colors.muted,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.1,
-    marginTop: 5,
-    textTransform: 'uppercase',
-  },
-  statValue: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: '900',
-  },
   statusBadge: {
     borderColor: 'rgba(220,38,38,0.35)',
     borderWidth: 1,
@@ -380,28 +346,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     textAlign: 'right',
-    textTransform: 'uppercase',
-  },
-  title: {
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: '900',
-    letterSpacing: -0.3,
-    lineHeight: 34,
-    marginTop: 2,
-    textTransform: 'uppercase',
-  },
-  webButton: {
-    borderColor: colors.border,
-    borderWidth: 1,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-  },
-  webButtonText: {
-    color: colors.textSoft,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
 });

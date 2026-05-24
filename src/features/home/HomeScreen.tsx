@@ -12,6 +12,11 @@ import {
   View,
 } from 'react-native';
 
+import {
+  StatTile,
+  WebFallbackButton,
+  sharedScreenStyles,
+} from '@/src/components/ui/NativePrimitives';
 import { useAuth } from '@/src/features/auth/AuthProvider';
 import {
   formatFantasyEventDate,
@@ -19,7 +24,7 @@ import {
   getNextFantasyEvent,
 } from '@/src/lib/fantasyEvents';
 import { supabase } from '@/src/lib/supabase';
-import { colors, spacing } from '@/src/lib/theme/tokens';
+import { colors } from '@/src/lib/theme/tokens';
 
 const OWNED_STATUSES = new Set(['owned', 'for_sale', 'not_for_sale', 'for_trade']);
 
@@ -170,8 +175,8 @@ export function HomeScreen() {
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <View style={styles.grid}>
-          <StatBlock label="Owned" value={isLoading ? '--' : String(counts.owned)} />
-          <StatBlock label="Wanted" value={isLoading ? '--' : String(counts.wanted)} />
+          <StatTile label="Owned" value={isLoading ? '--' : String(counts.owned)} />
+          <StatTile label="Wanted" value={isLoading ? '--' : String(counts.wanted)} />
         </View>
 
         <View style={styles.panel}>
@@ -192,21 +197,15 @@ export function HomeScreen() {
           <Text style={styles.panelText}>
             The first native tab is live. Fantasy, collection, and profile can now move over as focused native screens.
           </Text>
-          <Pressable style={styles.primaryButton} onPress={openWebFallback}>
-            <Text style={styles.primaryButtonText}>Open WebView fallback</Text>
-          </Pressable>
+          <WebFallbackButton
+            label="Open WebView fallback"
+            onPress={openWebFallback}
+            style={styles.primaryButton}
+            textStyle={styles.primaryButtonText}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function StatBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.statBlock}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
   );
 }
 
@@ -333,10 +332,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   scrollContent: {
-    gap: 14,
-    paddingBottom: 28,
-    paddingHorizontal: spacing.screenX,
-    paddingTop: 16,
+    ...sharedScreenStyles.scrollContent,
   },
   signOutButton: {
     borderColor: colors.border,
@@ -350,26 +346,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 1.1,
     textTransform: 'uppercase',
-  },
-  statBlock: {
-    backgroundColor: colors.panelSoft,
-    borderColor: colors.border,
-    borderWidth: 1,
-    flex: 1,
-    padding: 15,
-  },
-  statLabel: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.3,
-    marginTop: 5,
-    textTransform: 'uppercase',
-  },
-  statValue: {
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: '900',
   },
   statusPill: {
     borderColor: 'rgba(220,38,38,0.45)',

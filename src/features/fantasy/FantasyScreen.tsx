@@ -11,6 +11,12 @@ import {
   View,
 } from 'react-native';
 
+import {
+  ScreenHeader,
+  StatTile,
+  WebFallbackButton,
+  sharedScreenStyles,
+} from '@/src/components/ui/NativePrimitives';
 import { LoadingScreen, ScreenState } from '@/src/components/ui/ScreenState';
 import { useAuth } from '@/src/features/auth/AuthProvider';
 import {
@@ -23,7 +29,7 @@ import {
   getUpcomingFantasyEvents,
 } from '@/src/lib/fantasyEvents';
 import { supabase } from '@/src/lib/supabase';
-import { colors, spacing } from '@/src/lib/theme/tokens';
+import { colors } from '@/src/lib/theme/tokens';
 
 type FantasyEvent = {
   event_date: string | null;
@@ -125,15 +131,10 @@ export function FantasyScreen() {
           />
         }
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.kicker}>Fight Card Society</Text>
-            <Text style={styles.title}>Fantasy</Text>
-          </View>
-          <Pressable hitSlop={10} onPress={openWebFallback} style={styles.webButton}>
-            <Text style={styles.webButtonText}>WebView</Text>
-          </Pressable>
-        </View>
+        <ScreenHeader
+          action={<WebFallbackButton onPress={openWebFallback} />}
+          title="Fantasy"
+        />
 
         {error ? (
           <ScreenState
@@ -163,11 +164,11 @@ export function FantasyScreen() {
         </View>
 
         <View style={styles.grid}>
-          <StatBlock
+          <StatTile
             label="Your rank"
             value={currentStanding ? `#${currentStanding.rank}` : '--'}
           />
-          <StatBlock
+          <StatTile
             label="Your points"
             value={currentStanding ? String(currentStanding.points) : '0'}
           />
@@ -265,15 +266,6 @@ function RuleTile({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.statBlock}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background,
@@ -348,11 +340,6 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     gap: 10,
-  },
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
   },
   hero: {
     backgroundColor: colors.panel,
@@ -487,30 +474,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   scrollContent: {
-    gap: 14,
-    paddingBottom: 28,
-    paddingHorizontal: spacing.screenX,
-    paddingTop: 16,
-  },
-  statBlock: {
-    backgroundColor: colors.panelSoft,
-    borderColor: colors.border,
-    borderWidth: 1,
-    flex: 1,
-    padding: 15,
-  },
-  statLabel: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.3,
-    marginTop: 5,
-    textTransform: 'uppercase',
-  },
-  statValue: {
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: '900',
+    ...sharedScreenStyles.scrollContent,
   },
   statusPill: {
     borderColor: 'rgba(220,38,38,0.45)',
@@ -521,28 +485,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     paddingHorizontal: 8,
     paddingVertical: 5,
-    textTransform: 'uppercase',
-  },
-  title: {
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: '900',
-    letterSpacing: -0.3,
-    lineHeight: 34,
-    marginTop: 2,
-    textTransform: 'uppercase',
-  },
-  webButton: {
-    borderColor: colors.border,
-    borderWidth: 1,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-  },
-  webButtonText: {
-    color: colors.textSoft,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
 });

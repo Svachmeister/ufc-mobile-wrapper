@@ -14,19 +14,24 @@ export default function AppLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.muted,
+        tabBarItemStyle: {
+          minWidth: 0,
+          paddingHorizontal: 0,
+        },
         tabBarLabelStyle: {
           fontSize: 9,
           fontWeight: '900',
-          letterSpacing: 0.45,
+          letterSpacing: 0.25,
           textTransform: 'uppercase',
         },
         tabBarStyle: {
           backgroundColor: '#0b0b0c',
           borderTopColor: colors.border,
-          height: 72,
-          paddingBottom: 14,
+          height: 70,
+          paddingBottom: 12,
           paddingTop: 10,
         },
       }}

@@ -11,5 +11,9 @@ export const colors = {
 } as const;
 
 export const spacing = {
+  cardPadding: 16,
+  screenBottom: 30,
   screenX: 18,
+  screenY: 16,
+  sectionGap: 14,
 } as const;
