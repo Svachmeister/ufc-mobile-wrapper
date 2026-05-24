@@ -32,6 +32,8 @@ export type NativeChecklistsData = {
   };
 };
 
+export type NativeChecklistWritableStatus = 'owned' | 'wanted';
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
@@ -109,6 +111,49 @@ export function getCardsForSet(cards: NativeChecklistCard[], set: NativeChecklis
       return cardKey === set.id || card.setName === set.name;
     })
     .sort((a, b) => a.fighterName.localeCompare(b.fighterName));
+}
+
+export function getNextChecklistStatus(status: string | null): NativeChecklistWritableStatus | null {
+  if (status === 'wanted') return null;
+  if (status && OWNED_LIKE_STATUSES.has(status)) return 'wanted';
+  return 'owned';
+}
+
+export async function saveNativeChecklistStatus({
+  cardId,
+  status,
+  userId,
+}: {
+  cardId: string;
+  status: NativeChecklistWritableStatus | null;
+  userId: string;
+}) {
+  if (!userId || !cardId || cardId === 'unknown-card') {
+    return { error: 'Could not update card status.' };
+  }
+
+  if (status === null) {
+    const { error } = await supabase
+      .from('user_cards')
+      .delete()
+      .eq('user_id', userId)
+      .eq('card_id', cardId);
+
+    return { error: error ? 'Could not update card status.' : null };
+  }
+
+  const { error } = await supabase
+    .from('user_cards')
+    .upsert(
+      {
+        card_id: cardId,
+        status,
+        user_id: userId,
+      },
+      { onConflict: 'user_id,card_id' },
+    );
+
+  return { error: error ? 'Could not update card status.' : null };
 }
 
 export async function loadNativeChecklists(userId: string) {

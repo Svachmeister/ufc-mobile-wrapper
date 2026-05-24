@@ -23,7 +23,9 @@ import {
   type NativeChecklistCard,
   type NativeChecklistSet,
   getCardsForSet,
+  getNextChecklistStatus,
   loadNativeChecklists,
+  saveNativeChecklistStatus,
 } from '@/src/lib/checklists';
 import { OWNED_LIKE_STATUSES } from '@/src/lib/collection';
 import { colors } from '@/src/lib/theme/tokens';
@@ -68,6 +70,31 @@ function formatCardStatus(status: string | null) {
   return status.replace(/_/g, ' ');
 }
 
+function applyCardStatus(data: SetsState, cardId: string, status: string | null): SetsState {
+  const cards = data.cards.map((card) => (
+    card.cardId === cardId ? { ...card, status } : card
+  ));
+  const sets = data.sets.map((set) => {
+    const setCards = getCardsForSet(cards, set);
+
+    return {
+      ...set,
+      ownedCount: setCards.filter((card) => card.status && OWNED_LIKE_STATUSES.has(card.status)).length,
+      wantedCount: setCards.filter((card) => card.status === 'wanted').length,
+    };
+  });
+
+  return {
+    cards,
+    sets,
+    summary: {
+      owned: cards.filter((card) => card.status && OWNED_LIKE_STATUSES.has(card.status)).length,
+      sets: sets.length,
+      wanted: cards.filter((card) => card.status === 'wanted').length,
+    },
+  };
+}
+
 export function SetsScreen() {
   const { user } = useAuth();
   const [data, setData] = useState<SetsState>(emptyState);
@@ -75,6 +102,8 @@ export function SetsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const [updatingCardIds, setUpdatingCardIds] = useState<Set<string>>(new Set());
 
   const loadSets = useCallback(async () => {
     if (!user?.id) return;
@@ -105,6 +134,7 @@ export function SetsScreen() {
 
   const refresh = async () => {
     setIsRefreshing(true);
+    setMutationError(null);
     await loadSets();
     setIsRefreshing(false);
   };
@@ -112,6 +142,33 @@ export function SetsScreen() {
   const openWebFallback = () => {
     router.push('/web-fallback' as never);
   };
+
+  const handleToggleCard = useCallback(async (card: NativeChecklistCard) => {
+    if (!user?.id || updatingCardIds.has(card.cardId)) return;
+
+    const nextStatus = getNextChecklistStatus(card.status);
+
+    setMutationError(null);
+    setUpdatingCardIds((current) => new Set(current).add(card.cardId));
+    setData((current) => applyCardStatus(current, card.cardId, nextStatus));
+
+    const result = await saveNativeChecklistStatus({
+      cardId: card.cardId,
+      status: nextStatus,
+      userId: user.id,
+    });
+
+    if (result.error) {
+      await loadSets();
+      setMutationError(result.error);
+    }
+
+    setUpdatingCardIds((current) => {
+      const next = new Set(current);
+      next.delete(card.cardId);
+      return next;
+    });
+  }, [loadSets, updatingCardIds, user?.id]);
 
   const selectedSet = useMemo(
     () => data.sets.find((set) => set.id === selectedSetId) ?? null,
@@ -150,6 +207,8 @@ export function SetsScreen() {
             title="Sets unavailable"
           />
         ) : null}
+
+        {mutationError ? <Text style={styles.errorText}>{mutationError}</Text> : null}
 
         <View style={styles.hero}>
           <Text style={styles.kicker}>Checklists</Text>
@@ -212,7 +271,12 @@ export function SetsScreen() {
               {selectedCards.length > 0 ? (
                 <View style={styles.cardList}>
                   {selectedCards.map((card) => (
-                    <ChecklistCardRow key={card.cardId} card={card} />
+                    <ChecklistCardRow
+                      card={card}
+                      isUpdating={updatingCardIds.has(card.cardId)}
+                      key={card.cardId}
+                      onPress={() => handleToggleCard(card)}
+                    />
                   ))}
                 </View>
               ) : (
@@ -228,9 +292,21 @@ export function SetsScreen() {
   );
 }
 
-function ChecklistCardRow({ card }: { card: NativeChecklistCard }) {
+function ChecklistCardRow({
+  card,
+  isUpdating,
+  onPress,
+}: {
+  card: NativeChecklistCard;
+  isUpdating: boolean;
+  onPress: () => void;
+}) {
   return (
-    <View style={styles.cardRow}>
+    <Pressable
+      disabled={isUpdating}
+      onPress={onPress}
+      style={[styles.cardRow, card.status ? styles.cardRowActive : null, isUpdating ? styles.cardRowUpdating : null]}
+    >
       <View style={styles.cardInfo}>
         <Text numberOfLines={1} style={styles.cardTitle}>
           {card.fighterName}
@@ -239,9 +315,27 @@ function ChecklistCardRow({ card }: { card: NativeChecklistCard }) {
           {card.detail}
         </Text>
       </View>
-      <Text style={styles.statusBadge}>{formatCardStatus(card.status)}</Text>
-    </View>
+      <View style={styles.statusWrap}>
+        <Text style={[styles.statusBadge, getStatusBadgeStyle(card.status)]}>
+          {isUpdating ? 'Saving' : formatCardStatus(card.status)}
+        </Text>
+        <Text style={styles.nextStatusHint}>{getStatusHint(card.status)}</Text>
+      </View>
+    </Pressable>
   );
+}
+
+function getStatusBadgeStyle(status: string | null) {
+  if (status === 'wanted') return styles.statusWanted;
+  if (status && OWNED_LIKE_STATUSES.has(status)) return styles.statusOwned;
+  return styles.statusMissing;
+}
+
+function getStatusHint(status: string | null) {
+  const next = getNextChecklistStatus(status);
+  if (next === 'owned') return 'Tap to own';
+  if (next === 'wanted') return 'Tap to want';
+  return 'Tap to clear';
 }
 
 function MiniStat({ label, value }: { label: string; value: string }) {
@@ -307,6 +401,12 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 13,
   },
+  cardRowActive: {
+    borderColor: 'rgba(220,38,38,0.32)',
+  },
+  cardRowUpdating: {
+    opacity: 0.62,
+  },
   cardTitle: {
     color: colors.text,
     fontSize: 14,
@@ -333,6 +433,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginTop: 14,
+  },
+  errorText: {
+    color: '#fca5a5',
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
   },
   grid: {
     flexDirection: 'row',
@@ -417,6 +523,15 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textTransform: 'uppercase',
   },
+  nextStatusHint: {
+    color: colors.muted,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    marginTop: 5,
+    textAlign: 'right',
+    textTransform: 'uppercase',
+  },
   setAction: {
     borderColor: 'rgba(220,38,38,0.35)',
     borderWidth: 1,
@@ -478,5 +593,21 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     textAlign: 'right',
     textTransform: 'uppercase',
+  },
+  statusMissing: {
+    borderColor: colors.border,
+    color: colors.muted,
+  },
+  statusOwned: {
+    borderColor: 'rgba(34,197,94,0.5)',
+    color: '#86efac',
+  },
+  statusWanted: {
+    borderColor: 'rgba(251,191,36,0.5)',
+    color: '#fde68a',
+  },
+  statusWrap: {
+    alignItems: 'flex-end',
+    minWidth: 88,
   },
 });
