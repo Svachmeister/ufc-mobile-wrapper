@@ -43,6 +43,12 @@ export default function AppLayout() {
           tabBarLabel: 'Fantasy',
         }}
       />
+      <Tabs.Screen
+        name="collection"
+        options={{
+          tabBarLabel: 'Collection',
+        }}
+      />
     </Tabs>
   );
 }
