@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -8,6 +9,7 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
 
@@ -42,7 +44,7 @@ type CollectionCounts = {
 export function HomeScreen() {
   const { user } = useAuth();
   const [, setProfile] = useState<DashboardProfile | null>(null);
-  const [, setCounts] = useState<CollectionCounts>({ owned: 0, wanted: 0 });
+  const [counts, setCounts] = useState<CollectionCounts>({ owned: 0, wanted: 0 });
   const [, setNextEvent] = useState<DashboardEvent | null>(null);
   const [, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -108,6 +110,14 @@ export function HomeScreen() {
     setIsRefreshing(false);
   };
 
+  const openCollection = () => {
+    router.push('/collection' as never);
+  };
+
+  const openSets = () => {
+    router.push('/sets' as never);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -139,6 +149,38 @@ export function HomeScreen() {
             <MaterialCommunityIcons color={colors.ink} name="magnify" size={22} />
           </Pressable>
         </View>
+
+        <View style={styles.collectionSnapshot}>
+          <View style={styles.snapshotAccent} />
+          <Text style={styles.kicker}>Collection</Text>
+          <Text style={styles.snapshotTitle}>My Collection</Text>
+          <Text style={styles.snapshotCounts}>
+            {counts.owned} owned {'\u00b7'} {counts.wanted} wanted
+          </Text>
+          <Text style={styles.snapshotCopy}>
+            Continue building your fight card collection.
+          </Text>
+          <View style={styles.snapshotActions}>
+            <Pressable
+              onPress={openCollection}
+              style={({ pressed }) => [
+                styles.primaryTextAction,
+                pressed ? styles.pressed : null,
+              ]}
+            >
+              <Text style={styles.primaryTextActionLabel}>Open Collection</Text>
+            </Pressable>
+            <Pressable
+              onPress={openSets}
+              style={({ pressed }) => [
+                styles.secondaryTextAction,
+                pressed ? styles.pressed : null,
+              ]}
+            >
+              <Text style={styles.secondaryTextActionLabel}>Browse Card Sets</Text>
+            </Pressable>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -153,6 +195,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     flex: 1,
   },
+  collectionSnapshot: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    marginTop: 22,
+    paddingTop: 18,
+  },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -161,6 +209,27 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     width: 44,
+  },
+  kicker: {
+    color: colors.red,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+  },
+  pressed: {
+    opacity: 0.62,
+  },
+  primaryTextAction: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+  },
+  primaryTextActionLabel: {
+    color: colors.red,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   searchButton: {
     alignItems: 'center',
@@ -175,9 +244,53 @@ const styles = StyleSheet.create({
   searchButtonPressed: {
     opacity: 0.62,
   },
+  secondaryTextAction: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+  },
+  secondaryTextActionLabel: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
   scrollContent: {
     ...sharedScreenStyles.scrollContent,
     backgroundColor: '#ffffff',
     gap: 0,
+  },
+  snapshotAccent: {
+    backgroundColor: colors.red,
+    height: 3,
+    marginBottom: 15,
+    width: 34,
+  },
+  snapshotActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 18,
+    marginTop: 12,
+  },
+  snapshotCopy: {
+    color: colors.textSoft,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+    marginTop: 10,
+  },
+  snapshotCounts: {
+    color: colors.gray500,
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: 6,
+  },
+  snapshotTitle: {
+    color: colors.ink,
+    fontSize: 27,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+    lineHeight: 31,
+    marginTop: 5,
   },
 });
