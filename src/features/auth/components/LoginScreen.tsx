@@ -49,7 +49,7 @@ export function LoginScreen({ onShowRegister }: LoginScreenProps) {
   return (
     <AuthScreenShell
       heading="Enter The Society"
-      tagline="Track your collection. Complete your sets. Play Fantasy League."
+      tagline={'Track your collection. Complete your sets.\nPlay Fantasy League.'}
       footer={
         <Pressable disabled={isSubmitting} onPress={onShowRegister}>
           <Text style={styles.switchText}>
@@ -64,7 +64,7 @@ export function LoginScreen({ onShowRegister }: LoginScreenProps) {
           autoCapitalize="none"
           keyboardType="email-address"
           onChangeText={setEmail}
-          placeholder="member@email.com"
+          placeholder="Email"
           placeholderTextColor="#8a8a8a"
           style={styles.input}
           value={email}

@@ -12,6 +12,7 @@ import {
 
 import {
   ScreenHeader,
+  SectionPanel,
   StatTile,
   WebFallbackButton,
   sharedScreenStyles,
@@ -38,8 +39,22 @@ const emptySummary = {
 };
 
 function formatStatus(status: string | null) {
-  if (!status) return 'No status';
+  if (status === 'owned') return 'Owned';
+  if (status === 'for_sale') return 'For Sale';
+  if (status === 'for_trade') return 'For Trade';
+  if (status === 'not_for_sale') return 'Not For Sale';
+  if (status === 'not_for_trade') return 'Not For Trade';
+  if (status === 'wanted') return 'Wanted';
+  if (!status) return 'Missing';
   return status.replace(/_/g, ' ');
+}
+
+function getStatusBadgeStyle(status: string | null) {
+  if (status === 'wanted') return styles.statusWanted;
+  if (status === 'owned') return styles.statusOwned;
+  if (status === 'for_sale' || status === 'for_trade') return styles.statusMarket;
+  if (status === 'not_for_sale' || status === 'not_for_trade') return styles.statusLocked;
+  return styles.statusMissing;
 }
 
 export function CollectionScreen() {
@@ -102,7 +117,7 @@ export function CollectionScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -115,7 +130,8 @@ export function CollectionScreen() {
       >
         <ScreenHeader
           action={<WebFallbackButton onPress={openWebFallback} />}
-          title="Collection"
+          subtitle="Your saved cards, wanted list, and collector progress."
+          title="My Collection"
         />
 
         {error ? (
@@ -127,25 +143,28 @@ export function CollectionScreen() {
           />
         ) : null}
 
-        <View style={styles.hero}>
-          <Text style={styles.kicker}>My cards</Text>
+        <SectionPanel accent style={styles.hero}>
+          <Text style={styles.kicker}>Collector progress</Text>
           <Text style={styles.heroTitle}>
             {hasAnyCards ? 'Your collection is live' : 'Start your collection'}
           </Text>
           <Text style={styles.heroText}>
-            This native view is read-only for Milestone 3. Card status editing and checklist toggles stay in the web experience for now.
+            Track the cards you own, the ones you are chasing, and the sets you are building.
           </Text>
-        </View>
+        </SectionPanel>
 
         <View style={styles.grid}>
           <StatTile label="Owned" value={String(collection.summary.owned)} />
-          <StatTile label="Owned-like" value={String(collection.summary.ownedLike)} />
+          <StatTile label="In Collection" value={String(collection.summary.ownedLike)} />
           <StatTile label="Wanted" value={String(collection.summary.wanted)} />
         </View>
 
-        <View style={styles.panel}>
+        <SectionPanel style={styles.panel}>
           <View style={styles.panelHeader}>
-            <Text style={styles.kicker}>Owned cards</Text>
+            <View>
+              <Text style={styles.kicker}>Collection Highlights</Text>
+              <Text style={styles.sectionTitle}>In your binder</Text>
+            </View>
             <Text style={styles.countBadge}>{ownedCards.length} shown</Text>
           </View>
 
@@ -156,13 +175,16 @@ export function CollectionScreen() {
               ))}
             </View>
           ) : (
-            <Text style={styles.panelText}>No owned cards found yet.</Text>
+            <Text style={styles.panelText}>Cards you add to your collection will appear here.</Text>
           )}
-        </View>
+        </SectionPanel>
 
-        <View style={styles.panel}>
+        <SectionPanel style={styles.panel}>
           <View style={styles.panelHeader}>
-            <Text style={styles.kicker}>Wanted cards</Text>
+            <View>
+              <Text style={styles.kicker}>Wanted List</Text>
+              <Text style={styles.sectionTitle}>Cards to chase</Text>
+            </View>
             <Text style={styles.countBadge}>{wantedCards.length} shown</Text>
           </View>
 
@@ -173,23 +195,23 @@ export function CollectionScreen() {
               ))}
             </View>
           ) : (
-            <Text style={styles.panelText}>Your wanted list is empty in the native preview.</Text>
+            <Text style={styles.panelText}>Your wanted list is clear. Mark cards as wanted when you are ready to chase them.</Text>
           )}
-        </View>
+        </SectionPanel>
 
-        <View style={styles.panel}>
-          <Text style={styles.kicker}>Checklists</Text>
-          <Text style={styles.sectionTitle}>Browsing coming next</Text>
+        <SectionPanel style={styles.utilityPanel} variant="muted">
+          <Text style={styles.kicker}>Collection Tools</Text>
+          <Text style={styles.sectionTitle}>Need full checklist controls?</Text>
           <Text style={styles.panelText}>
-            The next native collection milestone can add set browsing and checklist detail screens. This pass only reads your current card rows.
+            Open the complete web tools when you need the full checklist workflow.
           </Text>
           <WebFallbackButton
-            label="Open WebView fallback"
+            label="Open Web Tools"
             onPress={openWebFallback}
             style={styles.secondaryButton}
             textStyle={styles.secondaryButtonText}
           />
-        </View>
+        </SectionPanel>
       </ScrollView>
     </SafeAreaView>
   );
@@ -206,7 +228,9 @@ function CollectionCardRow({ card }: { card: NativeCollectionCard }) {
           {card.detail}
         </Text>
       </View>
-      <Text style={styles.statusBadge}>{formatStatus(card.status)}</Text>
+      <Text style={[styles.statusBadge, getStatusBadgeStyle(card.status)]}>
+        {formatStatus(card.status)}
+      </Text>
     </View>
   );
 }
@@ -223,20 +247,22 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   cardList: {
-    gap: 9,
+    gap: 8,
     marginTop: 14,
   },
   cardRow: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.32)',
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 12,
-    padding: 13,
+    minHeight: 62,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
   },
   cardTitle: {
-    color: colors.text,
+    color: colors.ink,
     fontSize: 14,
     fontWeight: '900',
     lineHeight: 18,
@@ -249,7 +275,7 @@ const styles = StyleSheet.create({
   countBadge: {
     borderColor: colors.border,
     borderWidth: 1,
-    color: colors.textSoft,
+    color: colors.gray700,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1,
@@ -262,11 +288,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   hero: {
-    backgroundColor: colors.panel,
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderTopColor: colors.accent,
-    borderTopWidth: 3,
-    borderWidth: 1,
     padding: 18,
   },
   heroText: {
@@ -276,7 +297,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   heroTitle: {
-    color: colors.text,
+    color: colors.ink,
     fontSize: 29,
     fontWeight: '900',
     letterSpacing: -0.4,
@@ -292,14 +313,12 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   panel: {
-    backgroundColor: colors.panel,
-    borderColor: colors.border,
-    borderWidth: 1,
     padding: 16,
   },
   panelHeader: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
+    gap: 12,
     justifyContent: 'space-between',
   },
   panelText: {
@@ -313,11 +332,9 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     alignItems: 'center',
-    borderColor: colors.border,
-    borderWidth: 1,
     justifyContent: 'center',
     marginTop: 16,
-    minHeight: 48,
+    minHeight: 44,
     paddingHorizontal: 16,
   },
   secondaryButtonText: {
@@ -328,18 +345,19 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   sectionTitle: {
-    color: colors.text,
-    fontSize: 20,
+    color: colors.ink,
+    fontSize: 19,
     fontWeight: '900',
     letterSpacing: -0.1,
-    lineHeight: 24,
-    marginTop: 8,
+    lineHeight: 23,
+    marginTop: 6,
     textTransform: 'uppercase',
   },
   statusBadge: {
-    borderColor: 'rgba(220,38,38,0.35)',
+    alignSelf: 'center',
+    borderColor: colors.border,
     borderWidth: 1,
-    color: colors.textSoft,
+    color: colors.gray700,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.8,
@@ -347,5 +365,29 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     textAlign: 'right',
     textTransform: 'uppercase',
+  },
+  statusLocked: {
+    borderColor: colors.border,
+    color: colors.gray500,
+  },
+  statusMarket: {
+    borderColor: colors.red,
+    color: colors.red,
+  },
+  statusMissing: {
+    borderColor: colors.border,
+    color: colors.gray500,
+  },
+  statusOwned: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+    color: colors.textInverse,
+  },
+  statusWanted: {
+    borderColor: colors.red,
+    color: colors.red,
+  },
+  utilityPanel: {
+    padding: 14,
   },
 });

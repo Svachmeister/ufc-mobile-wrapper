@@ -138,7 +138,7 @@ export function RegisterScreen({ onShowLogin }: RegisterScreenProps) {
         <TextInput
           autoCapitalize="none"
           onChangeText={setUsername}
-          placeholder="fightfan"
+          placeholder="Username"
           placeholderTextColor="#8a8a8a"
           style={styles.input}
           value={username}
@@ -151,7 +151,7 @@ export function RegisterScreen({ onShowLogin }: RegisterScreenProps) {
           autoCapitalize="none"
           keyboardType="email-address"
           onChangeText={setEmail}
-          placeholder="member@email.com"
+          placeholder="Email"
           placeholderTextColor="#8a8a8a"
           style={styles.input}
           value={email}
@@ -164,7 +164,7 @@ export function RegisterScreen({ onShowLogin }: RegisterScreenProps) {
           <TextInput
             autoCapitalize="none"
             onChangeText={setPassword}
-            placeholder="Minimum 8 characters"
+            placeholder="Password"
             placeholderTextColor="#8a8a8a"
             secureTextEntry={!showPassword}
             style={styles.passwordInput}
