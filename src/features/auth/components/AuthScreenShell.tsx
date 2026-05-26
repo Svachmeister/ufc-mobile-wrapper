@@ -16,6 +16,8 @@ type AuthScreenShellProps = {
   tagline: string;
 };
 
+const meshLines = Array.from({ length: 10 }, (_, index) => index);
+
 export function AuthScreenShell({
   children,
   footer,
@@ -32,87 +34,131 @@ export function AuthScreenShell({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.brandBlock}>
+        <View pointerEvents="none" style={styles.cageTexture}>
+          {meshLines.map((line) => (
+            <View
+              key={`mesh-forward-${line}`}
+              style={[
+                styles.cageLine,
+                styles.cageLineForward,
+                { left: line * 42 - 112 },
+              ]}
+            />
+          ))}
+          {meshLines.map((line) => (
+            <View
+              key={`mesh-back-${line}`}
+              style={[
+                styles.cageLine,
+                styles.cageLineBack,
+                { right: line * 42 - 112 },
+              ]}
+            />
+          ))}
+        </View>
+
+        <View style={styles.logoBlock}>
           <Image
-            source={require('../../../../assets/images/logo-fight-card-society.png')}
+            source={require('../../../../assets/fight-card-society-logo.png')}
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.brand}>Fight Card Society</Text>
         </View>
 
-        <View style={styles.copyBlock}>
-          <Text style={styles.heading}>{heading}</Text>
-          <View style={styles.rule} />
-          <Text style={styles.tagline}>{tagline}</Text>
+        <View style={styles.formSurface}>
+          <View style={styles.copyBlock}>
+            <Text style={styles.heading}>{heading}</Text>
+            <View style={styles.rule} />
+            <Text style={styles.tagline}>{tagline}</Text>
+          </View>
+
+          <View style={styles.formBlock}>{children}</View>
+
+          <View style={styles.footer}>{footer}</View>
         </View>
-
-        <View style={styles.formBlock}>{children}</View>
-
-        <View style={styles.footer}>{footer}</View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  brand: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 2.1,
-    marginTop: 10,
-    textAlign: 'center',
-    textTransform: 'uppercase',
+  cageLine: {
+    backgroundColor: 'rgba(8, 8, 8, 0.035)',
+    height: 420,
+    position: 'absolute',
+    top: -88,
+    width: 1,
   },
-  brandBlock: {
-    alignItems: 'center',
-    marginBottom: 30,
+  cageLineBack: {
+    transform: [{ rotate: '-32deg' }],
+  },
+  cageLineForward: {
+    transform: [{ rotate: '32deg' }],
+  },
+  cageTexture: {
+    height: 340,
+    left: 0,
+    opacity: 0.65,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   container: {
-    backgroundColor: '#050505',
+    backgroundColor: '#ffffff',
     flex: 1,
   },
   copyBlock: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   footer: {
     alignItems: 'center',
-    marginTop: 22,
+    marginTop: 18,
   },
   formBlock: {
-    gap: 14,
+    gap: 13,
+  },
+  formSurface: {
+    paddingHorizontal: 22,
+    paddingTop: 2,
+    zIndex: 1,
   },
   heading: {
-    color: '#ffffff',
-    fontSize: 31,
+    color: '#080808',
+    fontSize: 24,
     fontWeight: '900',
-    letterSpacing: 1.4,
-    lineHeight: 36,
+    letterSpacing: 1.2,
+    lineHeight: 29,
     textTransform: 'uppercase',
   },
   logo: {
-    height: 108,
-    width: 108,
+    height: 276,
+    width: 276,
+    zIndex: 1,
+  },
+  logoBlock: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 0,
+    paddingHorizontal: 22,
+    paddingTop: 18,
+    zIndex: 1,
   },
   rule: {
     backgroundColor: '#dc2626',
     height: 3,
-    marginBottom: 12,
-    marginTop: 12,
-    width: 56,
+    marginBottom: 10,
+    marginTop: 9,
+    width: 58,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    paddingBottom: 28,
-    paddingHorizontal: 22,
-    paddingTop: 44,
+    paddingBottom: 26,
+    position: 'relative',
   },
   tagline: {
-    color: '#c7c7c7',
-    fontSize: 15,
-    fontWeight: '600',
-    lineHeight: 21,
+    color: '#3b3b3b',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
   },
 });

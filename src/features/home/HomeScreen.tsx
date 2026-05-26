@@ -153,7 +153,7 @@ export function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.brandRow}>
             <Image
-              source={require('../../../assets/images/logo-fight-card-society.png')}
+              source={require('../../../assets/fight-card-society-logo.png')}
               style={styles.brandLogo}
               resizeMode="contain"
             />
@@ -257,8 +257,8 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   brandLogo: {
-    height: 34,
-    width: 34,
+    height: 40,
+    width: 40,
   },
   brandRow: {
     alignItems: 'center',

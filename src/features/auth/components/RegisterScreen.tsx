@@ -124,7 +124,7 @@ export function RegisterScreen({ onShowLogin }: RegisterScreenProps) {
   return (
     <AuthScreenShell
       heading="Create Account"
-      tagline="Start your collection. Play fantasy. Join the society."
+      tagline="Start your collection. Make your picks. Join the society."
       footer={
         <Pressable disabled={isSubmitting} onPress={onShowLogin}>
           <Text style={styles.switchText}>
@@ -139,7 +139,7 @@ export function RegisterScreen({ onShowLogin }: RegisterScreenProps) {
           autoCapitalize="none"
           onChangeText={setUsername}
           placeholder="fightfan"
-          placeholderTextColor="#686868"
+          placeholderTextColor="#8a8a8a"
           style={styles.input}
           value={username}
         />
@@ -152,7 +152,7 @@ export function RegisterScreen({ onShowLogin }: RegisterScreenProps) {
           keyboardType="email-address"
           onChangeText={setEmail}
           placeholder="member@email.com"
-          placeholderTextColor="#686868"
+          placeholderTextColor="#8a8a8a"
           style={styles.input}
           value={email}
         />
@@ -165,7 +165,7 @@ export function RegisterScreen({ onShowLogin }: RegisterScreenProps) {
             autoCapitalize="none"
             onChangeText={setPassword}
             placeholder="Minimum 8 characters"
-            placeholderTextColor="#686868"
+            placeholderTextColor="#8a8a8a"
             secureTextEntry={!showPassword}
             style={styles.passwordInput}
             value={password}
@@ -188,7 +188,7 @@ export function RegisterScreen({ onShowLogin }: RegisterScreenProps) {
           autoCapitalize="words"
           onChangeText={setCountry}
           placeholder="Country"
-          placeholderTextColor="#686868"
+          placeholderTextColor="#8a8a8a"
           style={styles.input}
           value={country}
         />
@@ -217,7 +217,7 @@ export function RegisterScreen({ onShowLogin }: RegisterScreenProps) {
 
 const styles = StyleSheet.create({
   errorText: {
-    color: '#fca5a5',
+    color: '#b91c1c',
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 18,
@@ -226,52 +226,52 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   input: {
-    backgroundColor: '#111111',
-    borderBottomColor: '#c9c9c9',
-    borderBottomWidth: 1,
-    color: '#ffffff',
+    backgroundColor: '#ffffff',
+    borderColor: '#151515',
+    borderWidth: 1,
+    color: '#080808',
     fontSize: 16,
     fontWeight: '700',
-    minHeight: 52,
+    minHeight: 50,
     paddingHorizontal: 14,
   },
   label: {
-    color: '#a9a9a9',
+    color: '#111111',
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
   messageText: {
-    color: '#d1fae5',
+    color: '#166534',
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 18,
   },
   passwordInput: {
-    color: '#ffffff',
+    color: '#080808',
     flex: 1,
     fontSize: 16,
     fontWeight: '700',
-    minHeight: 52,
+    minHeight: 50,
     paddingLeft: 14,
     paddingRight: 8,
   },
   passwordRow: {
     alignItems: 'center',
-    backgroundColor: '#111111',
-    borderBottomColor: '#c9c9c9',
-    borderBottomWidth: 1,
+    backgroundColor: '#ffffff',
+    borderColor: '#151515',
+    borderWidth: 1,
     flexDirection: 'row',
   },
   passwordToggle: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
+    minHeight: 50,
     paddingHorizontal: 14,
   },
   passwordToggleText: {
-    color: '#ffffff',
+    color: '#111111',
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.1,
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#dc2626',
     justifyContent: 'center',
     marginTop: 4,
-    minHeight: 54,
+    minHeight: 52,
   },
   primaryButtonPressed: {
     opacity: 0.75,
@@ -295,10 +295,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   switchAction: {
-    color: '#ffffff',
+    color: '#dc2626',
   },
   switchText: {
-    color: '#a8a8a8',
+    color: '#333333',
     fontSize: 14,
     fontWeight: '800',
   },

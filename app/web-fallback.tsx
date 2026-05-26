@@ -30,7 +30,7 @@ export default function WebFallbackScreen() {
 
         <View style={styles.center}>
           <Image
-            source={require('../assets/images/logo-fight-card-society.png')}
+            source={require('../assets/fight-card-society-logo.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />
@@ -83,7 +83,7 @@ export default function WebFallbackScreen() {
       {isLoading && (
         <View style={styles.loadingOverlay}>
           <Image
-            source={require('../assets/images/logo-fight-card-society.png')}
+            source={require('../assets/fight-card-society-logo.png')}
             style={styles.splashLogo}
             resizeMode="contain"
           />
