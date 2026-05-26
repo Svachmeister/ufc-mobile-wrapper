@@ -48,8 +48,8 @@ export function LoginScreen({ onShowRegister }: LoginScreenProps) {
 
   return (
     <AuthScreenShell
-      heading="Sign In"
-      tagline="Track your cards. Build your collection. Make your picks."
+      heading="Enter The Society"
+      tagline="Track your collection. Complete your sets. Play Fantasy League."
       footer={
         <Pressable disabled={isSubmitting} onPress={onShowRegister}>
           <Text style={styles.switchText}>

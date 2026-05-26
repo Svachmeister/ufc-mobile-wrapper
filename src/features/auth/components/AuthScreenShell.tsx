@@ -16,8 +16,6 @@ type AuthScreenShellProps = {
   tagline: string;
 };
 
-const meshLines = Array.from({ length: 10 }, (_, index) => index);
-
 export function AuthScreenShell({
   children,
   footer,
@@ -34,32 +32,9 @@ export function AuthScreenShell({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View pointerEvents="none" style={styles.cageTexture}>
-          {meshLines.map((line) => (
-            <View
-              key={`mesh-forward-${line}`}
-              style={[
-                styles.cageLine,
-                styles.cageLineForward,
-                { left: line * 42 - 112 },
-              ]}
-            />
-          ))}
-          {meshLines.map((line) => (
-            <View
-              key={`mesh-back-${line}`}
-              style={[
-                styles.cageLine,
-                styles.cageLineBack,
-                { right: line * 42 - 112 },
-              ]}
-            />
-          ))}
-        </View>
-
         <View style={styles.logoBlock}>
           <Image
-            source={require('../../../../assets/fight-card-society-logo.png')}
+            source={require('../../../../assets/images/logo_fightcardsociety.png')}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -82,27 +57,6 @@ export function AuthScreenShell({
 }
 
 const styles = StyleSheet.create({
-  cageLine: {
-    backgroundColor: 'rgba(8, 8, 8, 0.035)',
-    height: 420,
-    position: 'absolute',
-    top: -88,
-    width: 1,
-  },
-  cageLineBack: {
-    transform: [{ rotate: '-32deg' }],
-  },
-  cageLineForward: {
-    transform: [{ rotate: '32deg' }],
-  },
-  cageTexture: {
-    height: 340,
-    left: 0,
-    opacity: 0.65,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
   container: {
     backgroundColor: '#ffffff',
     flex: 1,

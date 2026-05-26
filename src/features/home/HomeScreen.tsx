@@ -153,7 +153,7 @@ export function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.brandRow}>
             <Image
-              source={require('../../../assets/fight-card-society-logo.png')}
+              source={require('../../../assets/images/logo_fightcardsociety.png')}
               style={styles.brandLogo}
               resizeMode="contain"
             />
