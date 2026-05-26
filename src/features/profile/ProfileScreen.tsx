@@ -82,6 +82,10 @@ export function ProfileScreen() {
     router.push('/web-fallback' as never);
   };
 
+  const goHome = () => {
+    router.replace('/home' as never);
+  };
+
   const handleLogout = async () => {
     setLogoutError(null);
     setIsLoggingOut(true);
@@ -110,7 +114,11 @@ export function ProfileScreen() {
         }
       >
         <ScreenHeader
-          action={<WebFallbackButton onPress={openWebFallback} />}
+          action={(
+            <Pressable hitSlop={10} onPress={goHome} style={styles.backButton}>
+              <Text style={styles.backButtonText}>Home</Text>
+            </Pressable>
+          )}
           title="Profile"
         />
 
@@ -206,6 +214,19 @@ function StatusTile({ label, ok }: { label: string; ok: boolean }) {
 }
 
 const styles = StyleSheet.create({
+  backButton: {
+    borderColor: colors.border,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  backButtonText: {
+    color: colors.text,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+  },
   container: {
     backgroundColor: colors.background,
     flex: 1,
