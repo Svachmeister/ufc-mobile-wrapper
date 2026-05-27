@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Image,
+  ImageBackground,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -41,10 +42,35 @@ type CollectionCounts = {
   wanted: number;
 };
 
+// Future PNG shell rule: the image asset provides visuals only.
+// React Native will render all labels and values; do not put text in the PNG.
+export const SLAB_RATIO = 1400 / 800;
+
+export const slabFields = {
+  username: { left: 0.36, top: 0.22, width: 0.28, font: 0.052 },
+  tier: { left: 0.42, top: 0.51, width: 0.12, font: 0.026 },
+  memberId: { left: 0.52, top: 0.51, width: 0.12, font: 0.026 },
+  since: { left: 0.62, top: 0.51, width: 0.12, font: 0.026 },
+  owned: { left: 0.73, top: 0.25, width: 0.08, font: 0.06 },
+  wanted: { left: 0.84, top: 0.25, width: 0.08, font: 0.06 },
+  totalCards: { right: 0.08, top: 0.49, width: 0.06, font: 0.03 },
+  oneOfOne: { right: 0.08, top: 0.57, width: 0.06, font: 0.03 },
+  completedSets: { right: 0.08, top: 0.65, width: 0.06, font: 0.03 },
+  totalValue: { right: 0.08, top: 0.73, width: 0.08, font: 0.03 },
+};
+
+export function scaleX(position: number, slabWidth: number) {
+  return position * slabWidth;
+}
+
+export function scaleFont(size: number, slabWidth: number) {
+  return size * slabWidth;
+}
+
 export function HomeScreen() {
   const { user } = useAuth();
   const [, setProfile] = useState<DashboardProfile | null>(null);
-  const [counts, setCounts] = useState<CollectionCounts>({ owned: 0, wanted: 0 });
+  const [, setCounts] = useState<CollectionCounts>({ owned: 0, wanted: 0 });
   const [, setNextEvent] = useState<DashboardEvent | null>(null);
   const [, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -150,34 +176,26 @@ export function HomeScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.collectionSnapshot}>
-          <View style={styles.snapshotAccent} />
-          <Text style={styles.kicker}>Collection</Text>
-          <Text style={styles.snapshotTitle}>My Collection</Text>
-          <Text style={styles.snapshotCounts}>
-            {counts.owned} owned {'\u00b7'} {counts.wanted} wanted
-          </Text>
-          <Text style={styles.snapshotCopy}>
-            Track owned cards, wanted cards, and set progress.
-          </Text>
-          <View style={styles.snapshotActions}>
+        <View style={styles.slabSection}>
+          <ImageBackground
+            source={require('../../../assets/images/member_slab_frame.png')}
+            style={styles.slabShell}
+            imageStyle={styles.slabShellImage}
+            resizeMode="contain"
+          />
+
+          <View style={styles.slabActions}>
             <Pressable
               onPress={openCollection}
-              style={({ pressed }) => [
-                styles.primaryTextAction,
-                pressed ? styles.pressed : null,
-              ]}
+              style={({ pressed }) => [styles.primaryAction, pressed ? styles.pressed : null]}
             >
-              <Text style={styles.primaryTextActionLabel}>Open Collection</Text>
+              <Text style={styles.primaryActionText}>Open Collection</Text>
             </Pressable>
             <Pressable
               onPress={openSets}
-              style={({ pressed }) => [
-                styles.secondaryTextAction,
-                pressed ? styles.pressed : null,
-              ]}
+              style={({ pressed }) => [styles.secondaryAction, pressed ? styles.pressed : null]}
             >
-              <Text style={styles.secondaryTextActionLabel}>Browse Card Sets</Text>
+              <Text style={styles.secondaryActionText}>Browse Card Sets</Text>
             </Pressable>
           </View>
         </View>
@@ -192,12 +210,8 @@ const styles = StyleSheet.create({
     width: 164,
   },
   container: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     flex: 1,
-  },
-  collectionSnapshot: {
-    marginTop: 28,
-    paddingTop: 4,
   },
   header: {
     alignItems: 'center',
@@ -209,22 +223,20 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 44,
   },
-  kicker: {
-    color: colors.red,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
-  },
   pressed: {
     opacity: 0.62,
   },
-  primaryTextAction: {
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
+  primaryAction: {
+    alignItems: 'center',
+    backgroundColor: colors.red,
+    borderRadius: 6,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 46,
+    paddingHorizontal: 12,
   },
-  primaryTextActionLabel: {
-    color: colors.red,
+  primaryActionText: {
+    color: colors.textInverse,
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 0.8,
@@ -243,11 +255,18 @@ const styles = StyleSheet.create({
   searchButtonPressed: {
     opacity: 0.62,
   },
-  secondaryTextAction: {
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
+  secondaryAction: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 46,
+    paddingHorizontal: 12,
   },
-  secondaryTextActionLabel: {
+  secondaryActionText: {
     color: colors.ink,
     fontSize: 12,
     fontWeight: '900',
@@ -256,40 +275,23 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     ...sharedScreenStyles.scrollContent,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     gap: 0,
   },
-  snapshotAccent: {
-    backgroundColor: colors.red,
-    height: 2,
-    marginBottom: 17,
-    width: 30,
-  },
-  snapshotActions: {
+  slabActions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 18,
+    gap: 10,
     marginTop: 12,
   },
-  snapshotCopy: {
-    color: colors.textSoft,
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 20,
-    marginTop: 12,
+  slabShell: {
+    aspectRatio: SLAB_RATIO,
+    width: '100%',
   },
-  snapshotCounts: {
-    color: colors.gray500,
-    fontSize: 14,
-    fontWeight: '800',
-    marginTop: 6,
+  slabShellImage: {
+    height: '100%',
+    width: '100%',
   },
-  snapshotTitle: {
-    color: colors.ink,
-    fontSize: 27,
-    fontWeight: '900',
-    letterSpacing: -0.5,
-    lineHeight: 31,
-    marginTop: 5,
+  slabSection: {
+    marginTop: 22,
   },
 });
