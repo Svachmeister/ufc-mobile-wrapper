@@ -53,8 +53,8 @@ export const slabFields = {
   tier: { left: 0.36, top: 0.590, width: 0.08, font: 0.0125 },
   memberId: { left: 0.52, top: 0.51, width: 0.12, font: 0.026 },
   since: { left: 0.575, top: 0.590, width: 0.075, font: 0.0125 },
-  owned: { left: 0.73, top: 0.25, width: 0.08, font: 0.06 },
-  wanted: { left: 0.84, top: 0.25, width: 0.08, font: 0.06 },
+  owned: { left: 0.715, top: 0.300, width: 0.055, font: 0.032 },
+  wanted: { left: 0.835, top: 0.300, width: 0.055, font: 0.032 },
   totalCards: { right: 0.08, top: 0.49, width: 0.06, font: 0.03 },
   oneOfOne: { right: 0.08, top: 0.57, width: 0.06, font: 0.03 },
   completedSets: { right: 0.08, top: 0.65, width: 0.06, font: 0.03 },
@@ -81,7 +81,7 @@ function formatMemberSince(createdAt: string | null) {
 export function HomeScreen() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<DashboardProfile | null>(null);
-  const [, setCounts] = useState<CollectionCounts>({ owned: 0, wanted: 0 });
+  const [counts, setCounts] = useState<CollectionCounts>({ owned: 0, wanted: 0 });
   const [, setNextEvent] = useState<DashboardEvent | null>(null);
   const [, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -248,6 +248,36 @@ export function HomeScreen() {
                 >
                   {memberSince}
                 </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.ownedOverlay,
+                    {
+                      fontSize: scaleFont(slabFields.owned.font, slabWidth),
+                      left: scaleX(slabFields.owned.left, slabWidth),
+                      lineHeight: scaleFont(slabFields.owned.font, slabWidth) * 1.05,
+                      top: slabFields.owned.top * slabHeight,
+                      width: scaleX(slabFields.owned.width, slabWidth),
+                    },
+                  ]}
+                >
+                  {counts.owned}
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.wantedOverlay,
+                    {
+                      fontSize: scaleFont(slabFields.wanted.font, slabWidth),
+                      left: scaleX(slabFields.wanted.left, slabWidth),
+                      lineHeight: scaleFont(slabFields.wanted.font, slabWidth) * 1.05,
+                      top: slabFields.wanted.top * slabHeight,
+                      width: scaleX(slabFields.wanted.width, slabWidth),
+                    },
+                  ]}
+                >
+                  {counts.wanted}
+                </Text>
               </>
             ) : null}
           </ImageBackground>
@@ -393,6 +423,32 @@ const styles = StyleSheet.create({
   },
   sinceOverlay: {
     color: colors.ink,
+    fontFamily: Platform.select({
+      android: 'sans-serif-condensed',
+      default: undefined,
+      ios: 'Arial Condensed',
+      web: 'Arial Black',
+    }),
+    fontWeight: '900',
+    letterSpacing: 0,
+    position: 'absolute',
+    textAlign: 'center',
+  },
+  ownedOverlay: {
+    color: colors.ink,
+    fontFamily: Platform.select({
+      android: 'sans-serif-condensed',
+      default: undefined,
+      ios: 'Arial Condensed',
+      web: 'Arial Black',
+    }),
+    fontWeight: '900',
+    letterSpacing: 0,
+    position: 'absolute',
+    textAlign: 'center',
+  },
+  wantedOverlay: {
+    color: colors.red,
     fontFamily: Platform.select({
       android: 'sans-serif-condensed',
       default: undefined,
