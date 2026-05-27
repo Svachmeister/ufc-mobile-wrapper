@@ -55,7 +55,7 @@ export const slabFields = {
   since: { left: 0.575, top: 0.590, width: 0.075, font: 0.0125 },
   owned: { left: 0.715, top: 0.300, width: 0.055, font: 0.032 },
   wanted: { left: 0.835, top: 0.300, width: 0.055, font: 0.032 },
-  totalCards: { right: 0.08, top: 0.49, width: 0.06, font: 0.03 },
+  totalCards: { right: 0.120, top: 0.520, width: 0.050, font: 0.015 },
   oneOfOne: { right: 0.08, top: 0.57, width: 0.06, font: 0.03 },
   completedSets: { right: 0.08, top: 0.65, width: 0.06, font: 0.03 },
   totalValue: { right: 0.08, top: 0.73, width: 0.08, font: 0.03 },
@@ -278,6 +278,21 @@ export function HomeScreen() {
                 >
                   {counts.wanted}
                 </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.totalCardsOverlay,
+                    {
+                      fontSize: scaleFont(slabFields.totalCards.font, slabWidth),
+                      lineHeight: scaleFont(slabFields.totalCards.font, slabWidth) * 1.05,
+                      right: scaleX(slabFields.totalCards.right, slabWidth),
+                      top: slabFields.totalCards.top * slabHeight,
+                      width: scaleX(slabFields.totalCards.width, slabWidth),
+                    },
+                  ]}
+                >
+                  {counts.owned}
+                </Text>
               </>
             ) : null}
           </ImageBackground>
@@ -459,5 +474,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
     position: 'absolute',
     textAlign: 'center',
+  },
+  totalCardsOverlay: {
+    color: colors.ink,
+    fontFamily: Platform.select({
+      android: 'sans-serif-condensed',
+      default: undefined,
+      ios: 'Arial Condensed',
+      web: 'Arial Black',
+    }),
+    fontWeight: '900',
+    letterSpacing: 0,
+    position: 'absolute',
+    textAlign: 'right',
   },
 });
