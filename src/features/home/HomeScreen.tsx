@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Image,
   ImageBackground,
+  Platform,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -47,8 +48,8 @@ type CollectionCounts = {
 export const SLAB_RATIO = 1400 / 800;
 
 export const slabFields = {
-  username: { left: 0.36, top: 0.22, width: 0.28, font: 0.052 },
-  tier: { left: 0.42, top: 0.51, width: 0.12, font: 0.026 },
+  username: { left: 0.374, top: 0.392, width: 0.335, font: 0.026 },
+  tier: { left: 0.36, top: 0.590, width: 0.08, font: 0.0125 },
   memberId: { left: 0.52, top: 0.51, width: 0.12, font: 0.026 },
   since: { left: 0.62, top: 0.51, width: 0.12, font: 0.026 },
   owned: { left: 0.73, top: 0.25, width: 0.08, font: 0.06 },
@@ -69,12 +70,13 @@ export function scaleFont(size: number, slabWidth: number) {
 
 export function HomeScreen() {
   const { user } = useAuth();
-  const [, setProfile] = useState<DashboardProfile | null>(null);
+  const [profile, setProfile] = useState<DashboardProfile | null>(null);
   const [, setCounts] = useState<CollectionCounts>({ owned: 0, wanted: 0 });
   const [, setNextEvent] = useState<DashboardEvent | null>(null);
   const [, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [, setError] = useState<string | null>(null);
+  const [slabWidth, setSlabWidth] = useState(0);
 
   const loadDashboard = useCallback(async () => {
     if (!user?.id) return;
@@ -144,6 +146,9 @@ export function HomeScreen() {
     router.push('/sets' as never);
   };
 
+  const displayName = profile?.username || user?.email?.split('@')[0] || 'Society Member';
+  const slabHeight = slabWidth / SLAB_RATIO;
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -181,8 +186,45 @@ export function HomeScreen() {
             source={require('../../../assets/images/member_slab_frame.png')}
             style={styles.slabShell}
             imageStyle={styles.slabShellImage}
+            onLayout={(event) => setSlabWidth(event.nativeEvent.layout.width)}
             resizeMode="contain"
-          />
+          >
+            {slabWidth ? (
+              <>
+                <Text
+                  ellipsizeMode="tail"
+                  numberOfLines={1}
+                  style={[
+                    styles.usernameOverlay,
+                    {
+                      fontSize: scaleFont(slabFields.username.font, slabWidth),
+                      left: scaleX(slabFields.username.left, slabWidth),
+                      lineHeight: scaleFont(slabFields.username.font, slabWidth) * 1.05,
+                      top: slabFields.username.top * slabHeight,
+                      width: scaleX(slabFields.username.width, slabWidth),
+                    },
+                  ]}
+                >
+                  {displayName.toUpperCase()}
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.tierOverlay,
+                    {
+                      fontSize: scaleFont(slabFields.tier.font, slabWidth),
+                      left: scaleX(slabFields.tier.left, slabWidth),
+                      lineHeight: scaleFont(slabFields.tier.font, slabWidth) * 1.05,
+                      top: slabFields.tier.top * slabHeight,
+                      width: scaleX(slabFields.tier.width, slabWidth),
+                    },
+                  ]}
+                >
+                  MEMBER
+                </Text>
+              </>
+            ) : null}
+          </ImageBackground>
 
           <View style={styles.slabActions}>
             <Pressable
@@ -293,5 +335,34 @@ const styles = StyleSheet.create({
   },
   slabSection: {
     marginTop: 22,
+  },
+  usernameOverlay: {
+    color: '#f4f1ea',
+    fontFamily: Platform.select({
+      android: 'sans-serif-condensed',
+      default: undefined,
+      ios: 'Arial Condensed',
+      web: 'Arial Black',
+    }),
+    fontWeight: '900',
+    letterSpacing: 0,
+    position: 'absolute',
+    textAlign: 'left',
+    textShadowColor: 'rgba(0, 0, 0, 0.65)',
+    textShadowOffset: { height: 1, width: 0 },
+    textShadowRadius: 1,
+  },
+  tierOverlay: {
+    color: colors.red,
+    fontFamily: Platform.select({
+      android: 'sans-serif-condensed',
+      default: undefined,
+      ios: 'Arial Condensed',
+      web: 'Arial Black',
+    }),
+    fontWeight: '900',
+    letterSpacing: 0,
+    position: 'absolute',
+    textAlign: 'center',
   },
 });
