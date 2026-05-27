@@ -362,13 +362,25 @@ export function HomeScreen() {
               onPress={openCollection}
               style={({ pressed }) => [styles.primaryAction, pressed ? styles.pressed : null]}
             >
-              <Text style={styles.primaryActionText}>Open Collection</Text>
+              <View style={styles.actionContent}>
+                <MaterialCommunityIcons
+                  color={colors.red}
+                  name="package-variant-closed"
+                  size={15}
+                />
+                <Text style={styles.primaryActionText}>Open Collection</Text>
+              </View>
+              <MaterialCommunityIcons color={colors.red} name="chevron-right" size={16} />
             </Pressable>
             <Pressable
               onPress={openSets}
               style={({ pressed }) => [styles.secondaryAction, pressed ? styles.pressed : null]}
             >
-              <Text style={styles.secondaryActionText}>Browse Card Sets</Text>
+              <View style={styles.actionContent}>
+                <MaterialCommunityIcons color={colors.ink} name="cards-outline" size={15} />
+                <Text style={styles.secondaryActionText}>Browse Card Sets</Text>
+              </View>
+              <MaterialCommunityIcons color={colors.ink} name="chevron-right" size={16} />
             </Pressable>
           </View>
         </View>
@@ -399,20 +411,31 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.62,
   },
+  actionContent: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: 5,
+    minWidth: 0,
+  },
   primaryAction: {
     alignItems: 'center',
-    backgroundColor: colors.red,
-    borderRadius: 6,
+    backgroundColor: colors.surface,
+    borderColor: colors.red,
+    borderRadius: 5,
+    borderWidth: 1,
     flex: 1,
-    justifyContent: 'center',
-    minHeight: 46,
-    paddingHorizontal: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 42,
+    paddingHorizontal: 9,
   },
   primaryActionText: {
-    color: colors.textInverse,
-    fontSize: 12,
+    color: colors.red,
+    flexShrink: 1,
+    fontSize: 11,
     fontWeight: '900',
-    letterSpacing: 0.8,
+    letterSpacing: 0.25,
     textTransform: 'uppercase',
   },
   searchButton: {
@@ -432,18 +455,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: 6,
+    borderRadius: 5,
     borderWidth: 1,
     flex: 1,
-    justifyContent: 'center',
-    minHeight: 46,
-    paddingHorizontal: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 42,
+    paddingHorizontal: 9,
   },
   secondaryActionText: {
     color: colors.ink,
-    fontSize: 12,
+    flexShrink: 1,
+    fontSize: 11,
     fontWeight: '900',
-    letterSpacing: 0.8,
+    letterSpacing: 0.25,
     textTransform: 'uppercase',
   },
   scrollContent: {
