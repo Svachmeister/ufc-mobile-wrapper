@@ -158,7 +158,7 @@ export function HomeScreen() {
             {counts.owned} owned {'\u00b7'} {counts.wanted} wanted
           </Text>
           <Text style={styles.snapshotCopy}>
-            Continue building your fight card collection.
+            Track owned cards, wanted cards, and set progress.
           </Text>
           <View style={styles.snapshotActions}>
             <Pressable
@@ -196,16 +196,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   collectionSnapshot: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    marginTop: 22,
-    paddingTop: 18,
+    marginTop: 28,
+    paddingTop: 4,
   },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    minHeight: 58,
+    minHeight: 64,
+    paddingTop: 4,
   },
   headerSpacer: {
     width: 44,
@@ -262,9 +261,9 @@ const styles = StyleSheet.create({
   },
   snapshotAccent: {
     backgroundColor: colors.red,
-    height: 3,
-    marginBottom: 15,
-    width: 34,
+    height: 2,
+    marginBottom: 17,
+    width: 30,
   },
   snapshotActions: {
     flexDirection: 'row',
@@ -277,7 +276,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,
-    marginTop: 10,
+    marginTop: 12,
   },
   snapshotCounts: {
     color: colors.gray500,
