@@ -51,14 +51,14 @@ export const SLAB_RATIO = 1400 / 800;
 export const slabFields = {
   username: { left: 0.374, top: 0.392, width: 0.335, font: 0.026 },
   tier: { left: 0.36, top: 0.590, width: 0.08, font: 0.0125 },
-  memberId: { left: 0.52, top: 0.51, width: 0.12, font: 0.026 },
+  memberId: { left: 0.460, top: 0.590, width: 0.080, font: 0.0125 },
   since: { left: 0.575, top: 0.590, width: 0.075, font: 0.0125 },
   owned: { left: 0.715, top: 0.300, width: 0.055, font: 0.032 },
   wanted: { left: 0.835, top: 0.300, width: 0.055, font: 0.032 },
   totalCards: { right: 0.120, top: 0.445, width: 0.050, font: 0.015 },
   oneOfOne: { right: 0.120, top: 0.519, width: 0.050, font: 0.015 },
   completedSets: { right: 0.120, top: 0.589, width: 0.050, font: 0.015 },
-  totalValue: { right: 0.085, top: 0.705, width: 0.050, font: 0.015 },
+  totalValue: { right: 0.117, top: 0.660, width: 0.050, font: 0.015 },
 };
 
 export function scaleX(position: number, slabWidth: number) {
@@ -232,6 +232,21 @@ export function HomeScreen() {
                   ]}
                 >
                   MEMBER
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.memberIdOverlay,
+                    {
+                      fontSize: scaleFont(slabFields.memberId.font, slabWidth),
+                      left: scaleX(slabFields.memberId.left, slabWidth),
+                      lineHeight: scaleFont(slabFields.memberId.font, slabWidth) * 1.05,
+                      top: slabFields.memberId.top * slabHeight,
+                      width: scaleX(slabFields.memberId.width, slabWidth),
+                    },
+                  ]}
+                >
+                  00123
                 </Text>
                 <Text
                   numberOfLines={1}
@@ -470,6 +485,19 @@ const styles = StyleSheet.create({
   },
   tierOverlay: {
     color: colors.red,
+    fontFamily: Platform.select({
+      android: 'sans-serif-condensed',
+      default: undefined,
+      ios: 'Arial Condensed',
+      web: 'Arial Black',
+    }),
+    fontWeight: '900',
+    letterSpacing: 0,
+    position: 'absolute',
+    textAlign: 'center',
+  },
+  memberIdOverlay: {
+    color: colors.ink,
     fontFamily: Platform.select({
       android: 'sans-serif-condensed',
       default: undefined,
