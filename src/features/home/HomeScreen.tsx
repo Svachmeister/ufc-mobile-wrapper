@@ -25,6 +25,7 @@ const OWNED_STATUSES = new Set(['owned', 'for_sale', 'not_for_sale', 'for_trade'
 
 type DashboardProfile = {
   country: string | null;
+  created_at: string | null;
   username: string | null;
 };
 
@@ -51,7 +52,7 @@ export const slabFields = {
   username: { left: 0.374, top: 0.392, width: 0.335, font: 0.026 },
   tier: { left: 0.36, top: 0.590, width: 0.08, font: 0.0125 },
   memberId: { left: 0.52, top: 0.51, width: 0.12, font: 0.026 },
-  since: { left: 0.62, top: 0.51, width: 0.12, font: 0.026 },
+  since: { left: 0.575, top: 0.590, width: 0.075, font: 0.0125 },
   owned: { left: 0.73, top: 0.25, width: 0.08, font: 0.06 },
   wanted: { left: 0.84, top: 0.25, width: 0.08, font: 0.06 },
   totalCards: { right: 0.08, top: 0.49, width: 0.06, font: 0.03 },
@@ -66,6 +67,15 @@ export function scaleX(position: number, slabWidth: number) {
 
 export function scaleFont(size: number, slabWidth: number) {
   return size * slabWidth;
+}
+
+function formatMemberSince(createdAt: string | null) {
+  if (!createdAt) return '—';
+
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return '—';
+
+  return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 }
 
 export function HomeScreen() {
@@ -86,7 +96,7 @@ export function HomeScreen() {
     const [profileResult, userCardsResult, eventsResult] = await Promise.all([
       supabase
         .from('profiles')
-        .select('username,country')
+        .select('username,country,created_at')
         .eq('id', user.id)
         .maybeSingle(),
       supabase
@@ -147,6 +157,7 @@ export function HomeScreen() {
   };
 
   const displayName = profile?.username || user?.email?.split('@')[0] || 'Society Member';
+  const memberSince = formatMemberSince(profile?.created_at ?? null);
   const slabHeight = slabWidth / SLAB_RATIO;
 
   return (
@@ -221,6 +232,21 @@ export function HomeScreen() {
                   ]}
                 >
                   MEMBER
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.sinceOverlay,
+                    {
+                      fontSize: scaleFont(slabFields.since.font, slabWidth),
+                      left: scaleX(slabFields.since.left, slabWidth),
+                      lineHeight: scaleFont(slabFields.since.font, slabWidth) * 1.05,
+                      top: slabFields.since.top * slabHeight,
+                      width: scaleX(slabFields.since.width, slabWidth),
+                    },
+                  ]}
+                >
+                  {memberSince}
                 </Text>
               </>
             ) : null}
@@ -354,6 +380,19 @@ const styles = StyleSheet.create({
   },
   tierOverlay: {
     color: colors.red,
+    fontFamily: Platform.select({
+      android: 'sans-serif-condensed',
+      default: undefined,
+      ios: 'Arial Condensed',
+      web: 'Arial Black',
+    }),
+    fontWeight: '900',
+    letterSpacing: 0,
+    position: 'absolute',
+    textAlign: 'center',
+  },
+  sinceOverlay: {
+    color: colors.ink,
     fontFamily: Platform.select({
       android: 'sans-serif-condensed',
       default: undefined,
