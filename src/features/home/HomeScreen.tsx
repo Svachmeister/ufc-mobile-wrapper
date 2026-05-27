@@ -55,9 +55,9 @@ export const slabFields = {
   since: { left: 0.575, top: 0.590, width: 0.075, font: 0.0125 },
   owned: { left: 0.715, top: 0.300, width: 0.055, font: 0.032 },
   wanted: { left: 0.835, top: 0.300, width: 0.055, font: 0.032 },
-  totalCards: { right: 0.120, top: 0.520, width: 0.050, font: 0.015 },
-  oneOfOne: { right: 0.08, top: 0.57, width: 0.06, font: 0.03 },
-  completedSets: { right: 0.08, top: 0.65, width: 0.06, font: 0.03 },
+  totalCards: { right: 0.120, top: 0.445, width: 0.050, font: 0.015 },
+  oneOfOne: { right: 0.120, top: 0.519, width: 0.050, font: 0.015 },
+  completedSets: { right: 0.120, top: 0.589, width: 0.050, font: 0.015 },
   totalValue: { right: 0.085, top: 0.705, width: 0.050, font: 0.015 },
 };
 
@@ -262,6 +262,36 @@ export function HomeScreen() {
                   ]}
                 >
                   {counts.owned}
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.oneOfOneOverlay,
+                    {
+                      fontSize: scaleFont(slabFields.oneOfOne.font, slabWidth),
+                      lineHeight: scaleFont(slabFields.oneOfOne.font, slabWidth) * 1.05,
+                      right: scaleX(slabFields.oneOfOne.right, slabWidth),
+                      top: slabFields.oneOfOne.top * slabHeight,
+                      width: scaleX(slabFields.oneOfOne.width, slabWidth),
+                    },
+                  ]}
+                >
+                  0
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.completedSetsOverlay,
+                    {
+                      fontSize: scaleFont(slabFields.completedSets.font, slabWidth),
+                      lineHeight: scaleFont(slabFields.completedSets.font, slabWidth) * 1.05,
+                      right: scaleX(slabFields.completedSets.right, slabWidth),
+                      top: slabFields.completedSets.top * slabHeight,
+                      width: scaleX(slabFields.completedSets.width, slabWidth),
+                    },
+                  ]}
+                >
+                  0
                 </Text>
                 <Text
                   numberOfLines={1}
@@ -491,6 +521,32 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   totalCardsOverlay: {
+    color: colors.ink,
+    fontFamily: Platform.select({
+      android: 'sans-serif-condensed',
+      default: undefined,
+      ios: 'Arial Condensed',
+      web: 'Arial Black',
+    }),
+    fontWeight: '900',
+    letterSpacing: 0,
+    position: 'absolute',
+    textAlign: 'right',
+  },
+  oneOfOneOverlay: {
+    color: colors.ink,
+    fontFamily: Platform.select({
+      android: 'sans-serif-condensed',
+      default: undefined,
+      ios: 'Arial Condensed',
+      web: 'Arial Black',
+    }),
+    fontWeight: '900',
+    letterSpacing: 0,
+    position: 'absolute',
+    textAlign: 'right',
+  },
+  completedSetsOverlay: {
     color: colors.ink,
     fontFamily: Platform.select({
       android: 'sans-serif-condensed',
