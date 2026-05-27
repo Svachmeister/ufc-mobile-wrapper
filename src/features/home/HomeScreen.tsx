@@ -26,6 +26,8 @@ const OWNED_STATUSES = new Set(['owned', 'for_sale', 'not_for_sale', 'for_trade'
 type DashboardProfile = {
   country: string | null;
   created_at: string | null;
+  membership_tier: 'free' | 'member' | string | null;
+  member_number: number | null;
   username: string | null;
 };
 
@@ -78,6 +80,16 @@ function formatMemberSince(createdAt: string | null) {
   return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 }
 
+function formatMembershipTier(tier: string | null | undefined) {
+  return tier === 'member' ? 'MEMBER' : 'FREE';
+}
+
+function formatMemberNumber(memberNumber: number | null | undefined) {
+  if (typeof memberNumber !== 'number' || !Number.isFinite(memberNumber)) return '—';
+
+  return String(memberNumber).padStart(5, '0');
+}
+
 export function HomeScreen() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<DashboardProfile | null>(null);
@@ -96,7 +108,7 @@ export function HomeScreen() {
     const [profileResult, userCardsResult, eventsResult] = await Promise.all([
       supabase
         .from('profiles')
-        .select('username,country,created_at')
+        .select('username,country,created_at,membership_tier,member_number')
         .eq('id', user.id)
         .maybeSingle(),
       supabase
@@ -158,6 +170,8 @@ export function HomeScreen() {
 
   const displayName = profile?.username || user?.email?.split('@')[0] || 'Society Member';
   const memberSince = formatMemberSince(profile?.created_at ?? null);
+  const membershipTier = formatMembershipTier(profile?.membership_tier);
+  const memberNumber = formatMemberNumber(profile?.member_number);
   const slabHeight = slabWidth / SLAB_RATIO;
 
   return (
@@ -231,7 +245,7 @@ export function HomeScreen() {
                     },
                   ]}
                 >
-                  MEMBER
+                  {membershipTier}
                 </Text>
                 <Text
                   numberOfLines={1}
@@ -246,7 +260,7 @@ export function HomeScreen() {
                     },
                   ]}
                 >
-                  00123
+                  {memberNumber}
                 </Text>
                 <Text
                   numberOfLines={1}
