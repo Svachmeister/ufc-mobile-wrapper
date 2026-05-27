@@ -58,7 +58,7 @@ export const slabFields = {
   totalCards: { right: 0.120, top: 0.520, width: 0.050, font: 0.015 },
   oneOfOne: { right: 0.08, top: 0.57, width: 0.06, font: 0.03 },
   completedSets: { right: 0.08, top: 0.65, width: 0.06, font: 0.03 },
-  totalValue: { right: 0.08, top: 0.73, width: 0.08, font: 0.03 },
+  totalValue: { right: 0.085, top: 0.705, width: 0.050, font: 0.015 },
 };
 
 export function scaleX(position: number, slabWidth: number) {
@@ -293,6 +293,21 @@ export function HomeScreen() {
                 >
                   {counts.owned}
                 </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.totalValueOverlay,
+                    {
+                      fontSize: scaleFont(slabFields.totalValue.font, slabWidth),
+                      lineHeight: scaleFont(slabFields.totalValue.font, slabWidth) * 1.05,
+                      right: scaleX(slabFields.totalValue.right, slabWidth),
+                      top: slabFields.totalValue.top * slabHeight,
+                      width: scaleX(slabFields.totalValue.width, slabWidth),
+                    },
+                  ]}
+                >
+                  —
+                </Text>
               </>
             ) : null}
           </ImageBackground>
@@ -476,6 +491,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   totalCardsOverlay: {
+    color: colors.ink,
+    fontFamily: Platform.select({
+      android: 'sans-serif-condensed',
+      default: undefined,
+      ios: 'Arial Condensed',
+      web: 'Arial Black',
+    }),
+    fontWeight: '900',
+    letterSpacing: 0,
+    position: 'absolute',
+    textAlign: 'right',
+  },
+  totalValueOverlay: {
     color: colors.ink,
     fontFamily: Platform.select({
       android: 'sans-serif-condensed',
