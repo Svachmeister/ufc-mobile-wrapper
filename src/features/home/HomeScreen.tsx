@@ -22,6 +22,7 @@ import { supabase } from '@/src/lib/supabase';
 import { colors } from '@/src/lib/theme/tokens';
 
 const OWNED_STATUSES = new Set(['owned', 'for_sale', 'not_for_sale', 'for_trade']);
+const HOME_BACKGROUND = '#fbfaf7';
 
 type DashboardProfile = {
   country: string | null;
@@ -409,7 +410,7 @@ const styles = StyleSheet.create({
     width: 164,
   },
   container: {
-    backgroundColor: colors.surface,
+    backgroundColor: HOME_BACKGROUND,
     flex: 1,
   },
   header: {
@@ -485,7 +486,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     ...sharedScreenStyles.scrollContent,
-    backgroundColor: colors.surface,
+    backgroundColor: HOME_BACKGROUND,
     gap: 0,
   },
   slabActions: {
