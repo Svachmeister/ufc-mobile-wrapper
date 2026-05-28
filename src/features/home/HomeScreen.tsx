@@ -378,23 +378,23 @@ export function HomeScreen() {
             >
               <View style={styles.actionContent}>
                 <MaterialCommunityIcons
-                  color={colors.red}
+                  color={colors.textInverse}
                   name="package-variant-closed"
-                  size={15}
+                  size={18}
                 />
                 <Text style={styles.primaryActionText}>Open Collection</Text>
               </View>
-              <MaterialCommunityIcons color={colors.red} name="chevron-right" size={16} />
+              <MaterialCommunityIcons color={colors.textInverse} name="chevron-right" size={19} />
             </Pressable>
             <Pressable
               onPress={openSets}
               style={({ pressed }) => [styles.secondaryAction, pressed ? styles.pressed : null]}
             >
               <View style={styles.actionContent}>
-                <MaterialCommunityIcons color={colors.ink} name="cards-outline" size={15} />
-                <Text style={styles.secondaryActionText}>Browse Card Sets</Text>
+                <MaterialCommunityIcons color={colors.ink} name="cards-outline" size={18} />
+                <Text style={styles.secondaryActionText}>Browse Sets</Text>
               </View>
-              <MaterialCommunityIcons color={colors.ink} name="chevron-right" size={16} />
+              <MaterialCommunityIcons color={colors.ink} name="chevron-right" size={19} />
             </Pressable>
           </View>
         </View>
@@ -429,27 +429,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     flexDirection: 'row',
-    gap: 5,
+    gap: 7,
     minWidth: 0,
   },
   primaryAction: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.red,
     borderColor: colors.red,
-    borderRadius: 5,
+    borderRadius: 6,
     borderWidth: 1,
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    minHeight: 42,
-    paddingHorizontal: 9,
+    minHeight: 52,
+    paddingHorizontal: 12,
   },
   primaryActionText: {
-    color: colors.red,
-    flexShrink: 1,
+    color: colors.textInverse,
     fontSize: 11,
     fontWeight: '900',
-    letterSpacing: 0.25,
+    letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
   searchButton: {
@@ -468,21 +467,20 @@ const styles = StyleSheet.create({
   secondaryAction: {
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 5,
+    borderColor: colors.ink,
+    borderRadius: 6,
     borderWidth: 1,
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    minHeight: 42,
-    paddingHorizontal: 9,
+    minHeight: 52,
+    paddingHorizontal: 12,
   },
   secondaryActionText: {
     color: colors.ink,
-    flexShrink: 1,
     fontSize: 11,
     fontWeight: '900',
-    letterSpacing: 0.25,
+    letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
   scrollContent: {
@@ -493,7 +491,7 @@ const styles = StyleSheet.create({
   slabActions: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 12,
+    marginTop: 9,
   },
   slabShell: {
     aspectRatio: SLAB_RATIO,
