@@ -24,6 +24,24 @@ import { colors } from '@/src/lib/theme/tokens';
 const OWNED_STATUSES = new Set(['owned', 'for_sale', 'not_for_sale', 'for_trade']);
 const HOME_BACKGROUND = '#fbfaf7';
 
+const ONE_OF_ONE_PREVIEWS = [
+  {
+    fighter: 'KHAMZAT CHIMAEV',
+    card: 'BLACK FLAG AUTO 1/1',
+    time: '23 MINUTES AGO',
+  },
+  {
+    fighter: 'SEAN STRICKLAND',
+    card: 'CRIMSON PATCH 1/1',
+    time: '1 HOUR AGO',
+  },
+  {
+    fighter: 'ISRAEL ADESANYA',
+    card: 'GOLD STANDARD 1/1',
+    time: '3 HOURS AGO',
+  },
+];
+
 type DashboardProfile = {
   country: string | null;
   created_at: string | null;
@@ -464,6 +482,52 @@ export function HomeScreen() {
 
           <MaterialCommunityIcons color={colors.ink} name="chevron-right" size={22} />
         </Pressable>
+
+        <View style={styles.trackerSection}>
+          <View style={styles.trackerHeader}>
+            <View style={styles.trackerTitleGroup}>
+              <View style={styles.trackerDot} />
+              <Text style={styles.trackerTitle}>1-of-1 Tracker</Text>
+            </View>
+            <View style={styles.trackerViewAll}>
+              <Text style={styles.trackerViewAllText}>View All</Text>
+              <MaterialCommunityIcons color={colors.red} name="chevron-right" size={16} />
+            </View>
+          </View>
+
+          <Text style={styles.trackerSubtitle}>Community-submitted first sightings</Text>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.trackerCardRow}
+          >
+            {ONE_OF_ONE_PREVIEWS.map((item) => (
+              <View key={item.fighter} style={styles.trackerCard}>
+                <View style={styles.trackerImageArea}>
+                  <View style={styles.trackerBadgeRow}>
+                    <Text style={styles.trackerBadgeNew}>New</Text>
+                    <Text style={styles.trackerBadgeOne}>1-of-1</Text>
+                  </View>
+                  <View style={styles.trackerCardArt}>
+                    <Text style={styles.trackerCardArtBrand}>FCS</Text>
+                    <View style={styles.trackerCardArtRule} />
+                    <MaterialCommunityIcons color={colors.red} name="cards-outline" size={24} />
+                  </View>
+                </View>
+                <View style={styles.trackerCardBody}>
+                  <Text numberOfLines={2} style={styles.trackerFighter}>
+                    {item.fighter}
+                  </Text>
+                  <Text numberOfLines={2} style={styles.trackerCardName}>
+                    {item.card}
+                  </Text>
+                  <Text style={styles.trackerTime}>{item.time}</Text>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -674,6 +738,158 @@ const styles = StyleSheet.create({
   },
   statusTextOpen: {
     color: colors.red,
+  },
+  trackerBadgeNew: {
+    backgroundColor: colors.red,
+    borderRadius: 3,
+    color: colors.textInverse,
+    fontSize: 7,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    overflow: 'hidden',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    textTransform: 'uppercase',
+  },
+  trackerBadgeOne: {
+    backgroundColor: colors.surface,
+    borderColor: colors.red,
+    borderRadius: 3,
+    borderWidth: 1,
+    color: colors.red,
+    fontSize: 7,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    overflow: 'hidden',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    textTransform: 'uppercase',
+  },
+  trackerBadgeRow: {
+    flexDirection: 'row',
+    gap: 4,
+    left: 8,
+    position: 'absolute',
+    top: 8,
+  },
+  trackerCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderWidth: 1,
+    overflow: 'hidden',
+    width: 132,
+  },
+  trackerCardArt: {
+    alignItems: 'center',
+    backgroundColor: colors.ink,
+    borderColor: colors.red,
+    borderRadius: 5,
+    borderWidth: 1,
+    height: 60,
+    justifyContent: 'center',
+    width: 50,
+  },
+  trackerCardArtBrand: {
+    color: colors.textInverse,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+  },
+  trackerCardArtRule: {
+    backgroundColor: colors.red,
+    height: 2,
+    marginVertical: 5,
+    width: 22,
+  },
+  trackerCardBody: {
+    gap: 6,
+    minHeight: 92,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  trackerCardName: {
+    color: colors.textSoft,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+    lineHeight: 13,
+    textTransform: 'uppercase',
+  },
+  trackerCardRow: {
+    gap: 9,
+    paddingRight: 2,
+  },
+  trackerDot: {
+    backgroundColor: colors.red,
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  trackerFighter: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.1,
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  trackerHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  trackerImageArea: {
+    alignItems: 'center',
+    backgroundColor: '#f4f2ed',
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    height: 108,
+    justifyContent: 'center',
+  },
+  trackerSection: {
+    marginTop: 22,
+    paddingBottom: 14,
+  },
+  trackerSubtitle: {
+    color: colors.textSoft,
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 12,
+    marginTop: 5,
+  },
+  trackerTime: {
+    color: colors.red,
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    marginTop: 2,
+    textTransform: 'uppercase',
+  },
+  trackerTitle: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  trackerTitleGroup: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  trackerViewAll: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 2,
+  },
+  trackerViewAllText: {
+    color: colors.red,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
   usernameOverlay: {
     color: '#f4f1ea',
