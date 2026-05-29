@@ -91,11 +91,37 @@ function formatMemberNumber(memberNumber: number | null | undefined) {
   return String(memberNumber).padStart(5, '0');
 }
 
+function formatEventDate(event: DashboardEvent | null) {
+  const value = event?.starts_at || event?.event_date;
+  if (!value) return 'DATE TBA';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'DATE TBA';
+
+  return date
+    .toLocaleDateString('en-US', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
+    .toUpperCase();
+}
+
+function getFantasyStatusLabel(event: DashboardEvent | null) {
+  const status = event?.status?.toLowerCase();
+
+  if (event?.picks_locked === true || status === 'completed' || status === 'closed') {
+    return 'PICKS CLOSED';
+  }
+
+  return 'PICKS OPEN';
+}
+
 export function HomeScreen() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<DashboardProfile | null>(null);
   const [counts, setCounts] = useState<CollectionCounts>({ owned: 0, wanted: 0 });
-  const [, setNextEvent] = useState<DashboardEvent | null>(null);
+  const [nextEvent, setNextEvent] = useState<DashboardEvent | null>(null);
   const [, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [, setError] = useState<string | null>(null);
@@ -169,10 +195,17 @@ export function HomeScreen() {
     router.push('/sets' as never);
   };
 
+  const openFantasy = () => {
+    router.push('/fantasy' as never);
+  };
+
   const displayName = profile?.username || user?.email?.split('@')[0] || 'Society Member';
   const memberSince = formatMemberSince(profile?.created_at ?? null);
   const membershipTier = formatMembershipTier(profile?.membership_tier);
   const memberNumber = formatMemberNumber(profile?.member_number);
+  const fantasyDate = formatEventDate(nextEvent);
+  const fantasyStatus = getFantasyStatusLabel(nextEvent);
+  const fantasyIsOpen = fantasyStatus === 'PICKS OPEN';
   const slabHeight = slabWidth / SLAB_RATIO;
 
   return (
@@ -381,24 +414,56 @@ export function HomeScreen() {
                 <MaterialCommunityIcons
                   color={colors.textInverse}
                   name="package-variant-closed"
-                  size={18}
+                  size={16}
                 />
                 <Text style={styles.primaryActionText}>Open Collection</Text>
               </View>
-              <MaterialCommunityIcons color={colors.textInverse} name="chevron-right" size={19} />
+              <MaterialCommunityIcons color={colors.textInverse} name="chevron-right" size={18} />
             </Pressable>
             <Pressable
               onPress={openSets}
               style={({ pressed }) => [styles.secondaryAction, pressed ? styles.pressed : null]}
             >
               <View style={styles.actionContent}>
-                <MaterialCommunityIcons color={colors.ink} name="cards-outline" size={18} />
+                <MaterialCommunityIcons color={colors.ink} name="cards-outline" size={16} />
                 <Text style={styles.secondaryActionText}>Browse Sets</Text>
               </View>
-              <MaterialCommunityIcons color={colors.ink} name="chevron-right" size={19} />
+              <MaterialCommunityIcons color={colors.ink} name="chevron-right" size={18} />
             </Pressable>
           </View>
         </View>
+
+        <Pressable
+          onPress={openFantasy}
+          style={({ pressed }) => [styles.fantasyPanel, pressed ? styles.pressed : null]}
+        >
+          <View style={styles.fantasyIconBlock}>
+            <MaterialCommunityIcons color={colors.textInverse} name="trophy-outline" size={26} />
+          </View>
+
+          <View style={styles.fantasyInfo}>
+            <Text style={styles.fantasyKicker}>Fantasy League</Text>
+            <Text numberOfLines={2} style={styles.fantasyTitle}>
+              {(nextEvent?.name || 'Next Fantasy Event').toUpperCase()}
+            </Text>
+            <View style={styles.fantasyMetaRow}>
+              <Text style={styles.fantasyDate}>{fantasyDate}</Text>
+              <View style={[styles.statusPill, fantasyIsOpen ? styles.statusPillOpen : null]}>
+                <Text style={[styles.statusText, fantasyIsOpen ? styles.statusTextOpen : null]}>
+                  {fantasyStatus}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.rankBlock}>
+            <Text style={styles.rankLabel}>Your Rank</Text>
+            <Text style={styles.rankValue}>#7</Text>
+            <Text style={styles.rankTotal}>/ 512</Text>
+          </View>
+
+          <MaterialCommunityIcons color={colors.ink} name="chevron-right" size={22} />
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -413,6 +478,59 @@ const styles = StyleSheet.create({
     backgroundColor: HOME_BACKGROUND,
     flex: 1,
   },
+  fantasyDate: {
+    color: colors.textSoft,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  fantasyIconBlock: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    backgroundColor: colors.red,
+    borderRadius: 5,
+    justifyContent: 'center',
+    width: 46,
+  },
+  fantasyInfo: {
+    flex: 1,
+    gap: 6,
+    minWidth: 0,
+  },
+  fantasyKicker: {
+    color: colors.red,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  fantasyMetaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    marginTop: 1,
+  },
+  fantasyPanel: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.ink,
+    borderRadius: 6,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 17,
+    minHeight: 110,
+    padding: 12,
+  },
+  fantasyTitle: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.1,
+    lineHeight: 18,
+  },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -426,11 +544,41 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.62,
   },
+  rankBlock: {
+    alignItems: 'center',
+    borderLeftColor: colors.border,
+    borderLeftWidth: 1,
+    gap: 1,
+    justifyContent: 'center',
+    minHeight: 74,
+    paddingLeft: 10,
+    width: 88,
+  },
+  rankLabel: {
+    color: colors.textSoft,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  rankTotal: {
+    color: colors.textSoft,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  rankValue: {
+    color: colors.red,
+    fontSize: 26,
+    fontWeight: '900',
+    letterSpacing: -0.4,
+    lineHeight: 29,
+  },
   actionContent: {
     alignItems: 'center',
     flex: 1,
     flexDirection: 'row',
-    gap: 7,
+    gap: 5,
     minWidth: 0,
   },
   primaryAction: {
@@ -443,13 +591,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     minHeight: 52,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
   },
   primaryActionText: {
     color: colors.textInverse,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 0.4,
+    letterSpacing: 0.2,
     textTransform: 'uppercase',
   },
   searchButton: {
@@ -475,13 +623,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     minHeight: 52,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
   },
   secondaryActionText: {
     color: colors.ink,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 0.4,
+    letterSpacing: 0.2,
     textTransform: 'uppercase',
   },
   scrollContent: {
@@ -504,6 +652,28 @@ const styles = StyleSheet.create({
   },
   slabSection: {
     marginTop: 22,
+  },
+  statusPill: {
+    backgroundColor: colors.red,
+    borderColor: colors.red,
+    borderRadius: 4,
+    borderWidth: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  statusPillOpen: {
+    backgroundColor: colors.surface,
+    borderColor: colors.red,
+  },
+  statusText: {
+    color: colors.textInverse,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  statusTextOpen: {
+    color: colors.red,
   },
   usernameOverlay: {
     color: '#f4f1ea',
