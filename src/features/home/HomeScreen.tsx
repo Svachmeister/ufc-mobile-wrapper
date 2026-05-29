@@ -42,6 +42,28 @@ const ONE_OF_ONE_PREVIEWS = [
   },
 ];
 
+const SOCIETY_UPDATES = [
+  {
+    description:
+      'Black Flag Signatures is LIVE. Chase 1-of-1 autographs from the baddest in the game.',
+    icon: 'cards-outline',
+    time: '2h ago',
+    title: 'New Card Set Drop',
+  },
+  {
+    description: 'UFC 327 results are in. Check your leaderboard and claim your rewards.',
+    icon: 'trophy-outline',
+    time: '5h ago',
+    title: 'Fantasy Results Posted',
+  },
+  {
+    description: 'Submit your best 1-of-1 pull for a chance to be featured.',
+    icon: 'bullhorn-outline',
+    time: '1d ago',
+    title: 'Society Challenge',
+  },
+] as const;
+
 type DashboardProfile = {
   country: string | null;
   created_at: string | null;
@@ -528,6 +550,50 @@ export function HomeScreen() {
             ))}
           </ScrollView>
         </View>
+
+        <View style={styles.updatesSection}>
+          <View style={styles.updatesHeader}>
+            <Text style={styles.updatesTitle}>Society Updates</Text>
+            <View style={styles.updatesViewAll}>
+              <Text style={styles.updatesViewAllText}>View All</Text>
+              <MaterialCommunityIcons color={colors.red} name="chevron-right" size={16} />
+            </View>
+          </View>
+
+          <View style={styles.updateRows}>
+            {SOCIETY_UPDATES.map((update, index) => (
+              <View
+                key={update.title}
+                style={[
+                  styles.updateRow,
+                  index === SOCIETY_UPDATES.length - 1 ? styles.updateRowLast : null,
+                ]}
+              >
+                <View style={styles.updateIconBadge}>
+                  <MaterialCommunityIcons
+                    color={colors.textInverse}
+                    name={update.icon}
+                    size={18}
+                  />
+                </View>
+
+                <View style={styles.updateTextBlock}>
+                  <View style={styles.updateTitleRow}>
+                    <Text numberOfLines={1} style={styles.updateTitle}>
+                      {update.title}
+                    </Text>
+                    <Text style={styles.updateTime}>{update.time}</Text>
+                  </View>
+                  <Text numberOfLines={2} style={styles.updateDescription}>
+                    {update.description}
+                  </Text>
+                </View>
+
+                <MaterialCommunityIcons color={colors.ink} name="chevron-right" size={18} />
+              </View>
+            ))}
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -890,6 +956,86 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
+  },
+  updateDescription: {
+    color: colors.textSoft,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 15,
+  },
+  updateIconBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.ink,
+    borderRadius: 16,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
+  },
+  updateRow: {
+    alignItems: 'center',
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: 11,
+    paddingVertical: 13,
+  },
+  updateRowLast: {
+    borderBottomWidth: 0,
+  },
+  updateRows: {
+    backgroundColor: 'transparent',
+  },
+  updatesHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  updatesSection: {
+    marginTop: 22,
+    paddingBottom: 26,
+  },
+  updatesTitle: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  updatesViewAll: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 2,
+  },
+  updatesViewAllText: {
+    color: colors.red,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  updateTextBlock: {
+    flex: 1,
+    gap: 4,
+    minWidth: 0,
+  },
+  updateTime: {
+    color: colors.textSoft,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  updateTitle: {
+    color: colors.ink,
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.2,
+  },
+  updateTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   usernameOverlay: {
     color: '#f4f1ea',
