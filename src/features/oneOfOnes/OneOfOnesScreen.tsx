@@ -140,6 +140,10 @@ export function OneOfOnesScreen() {
     setIsRefreshing(false);
   };
 
+  const openReportForm = () => {
+    router.push('/report-one-of-one' as never);
+  };
+
   const filteredCards = useMemo(() => {
     if (filter === 'owned') return cards.filter((card) => card.status === 'verified_owned');
     if (filter === 'surfaced') return cards.filter((card) => card.status === 'verified_seen');
@@ -196,6 +200,17 @@ export function OneOfOnesScreen() {
                 );
               })}
             </View>
+
+            <Pressable
+              onPress={openReportForm}
+              style={({ pressed }) => [styles.reportButton, pressed ? styles.pressed : null]}
+            >
+              <View style={styles.reportButtonCopy}>
+                <MaterialCommunityIcons color={colors.textInverse} name="plus-box-outline" size={18} />
+                <Text style={styles.reportButtonText}>Report 1-of-1</Text>
+              </View>
+              <MaterialCommunityIcons color={colors.textInverse} name="chevron-right" size={18} />
+            </Pressable>
 
             {error ? (
               <ScreenState
@@ -472,6 +487,29 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.65,
+  },
+  reportButton: {
+    alignItems: 'center',
+    backgroundColor: colors.red,
+    borderColor: colors.red,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 50,
+    paddingHorizontal: 13,
+  },
+  reportButtonCopy: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  reportButtonText: {
+    color: colors.textInverse,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
   scrollContent: {
     ...sharedScreenStyles.scrollContent,
