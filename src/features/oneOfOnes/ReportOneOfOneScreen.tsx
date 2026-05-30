@@ -17,6 +17,7 @@ import {
 import { sharedScreenStyles } from '@/src/components/ui/NativePrimitives';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius } from '@/src/lib/theme/tokens';
+import { buildWebApiUrl } from '@/src/lib/webApi';
 
 type ClaimType = 'i_own_this' | 'i_saw_this' | 'public_listing' | 'pulled_in_break' | 'other';
 type SourceType =
@@ -48,9 +49,9 @@ const SOURCE_OPTIONS: { label: string; value: SourceType }[] = [
   { label: 'Other', value: 'other' },
 ];
 
-function cleanOptional(value: string) {
+function appendOptional(formData: FormData, name: string, value: string) {
   const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  if (trimmed) formData.append(name, trimmed);
 }
 
 export function ReportOneOfOneScreen() {
@@ -93,33 +94,47 @@ export function ReportOneOfOneScreen() {
     setIsSubmitting(true);
 
     try {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      const userId = userData.user?.id;
+      const url = buildWebApiUrl('/api/one-of-one-reports');
 
-      if (userError || !userId) {
+      if (!url) {
+        setError('Report API is not configured for this native build.');
+        return;
+      }
+
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (sessionError || !accessToken) {
         setError('Please sign in again before submitting a report.');
         return;
       }
 
-      const payload = {
-        reported_by: userId,
-        card_name: trimmedCardName,
-        claim_type: claimType,
-        source_type: sourceType,
-        fighter_name: cleanOptional(fighterName),
-        set_name: cleanOptional(setName),
-        card_number: cleanOptional(cardNumber),
-        parallel_name: cleanOptional(parallelName),
-        source_url: cleanOptional(sourceUrl),
-        description: cleanOptional(description),
-      };
+      const formData = new FormData();
+      formData.append('card_name', trimmedCardName);
+      formData.append('claim_type', claimType);
+      formData.append('source_type', sourceType);
+      appendOptional(formData, 'fighter_name', fighterName);
+      appendOptional(formData, 'set_name', setName);
+      appendOptional(formData, 'card_number', cardNumber);
+      appendOptional(formData, 'parallel_name', parallelName);
+      appendOptional(formData, 'source_url', sourceUrl);
+      appendOptional(formData, 'description', description);
 
-      const { error: insertError } = await supabase
-        .from('one_of_one_reports')
-        .insert(payload as never);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: formData,
+      });
 
-      if (insertError) {
-        setError('Could not submit report. Please check the details and try again.');
+      let responseBody: { error?: string } = {};
+      try {
+        responseBody = await response.json();
+      } catch {}
+
+      if (!response.ok) {
+        setError(responseBody.error || 'Could not submit report. Please check the details and try again.');
         return;
       }
 
