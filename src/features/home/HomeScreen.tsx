@@ -87,6 +87,21 @@ type CollectionCounts = {
   wanted: number;
 };
 
+type OneOfOneCardPreview = {
+  card_name: string;
+  card_number: string | null;
+  created_at: string | null;
+  fighter_name: string | null;
+  first_seen_at: string | null;
+  id: string;
+  parallel_name: string | null;
+  primary_image_url: string | null;
+  primary_source_url: string | null;
+  set_name: string | null;
+  status: string | null;
+  verified_at: string | null;
+};
+
 // Future PNG shell rule: the image asset provides visuals only.
 // React Native will render all labels and values; do not put text in the PNG.
 export const SLAB_RATIO = 1400 / 800;
@@ -157,11 +172,40 @@ function getFantasyStatusLabel(event: DashboardEvent | null) {
   return 'PICKS OPEN';
 }
 
+function formatTrackerTime(value: string | null) {
+  if (!value) return 'RECENT';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'RECENT';
+
+  const diffMinutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+
+  if (diffMinutes < 1) return 'JUST NOW';
+  if (diffMinutes < 60) return `${diffMinutes} MIN AGO`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} HOURS AGO`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays} DAYS AGO`;
+}
+
+function formatTrackerCardLine(card: OneOfOneCardPreview) {
+  const primary = card.card_name || card.set_name || 'Unknown Card';
+  const details = [card.parallel_name, card.card_number ? `#${card.card_number}` : null]
+    .filter(Boolean)
+    .join(' - ');
+
+  return [primary, details].filter(Boolean).join(' ');
+}
+
 export function HomeScreen() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<DashboardProfile | null>(null);
   const [counts, setCounts] = useState<CollectionCounts>({ owned: 0, wanted: 0 });
   const [nextEvent, setNextEvent] = useState<DashboardEvent | null>(null);
+  const [oneOfOneCards, setOneOfOneCards] = useState<OneOfOneCardPreview[]>([]);
+  const [failedOneOfOneImages, setFailedOneOfOneImages] = useState<Set<string>>(new Set());
   const [, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [, setError] = useState<string | null>(null);
@@ -172,7 +216,7 @@ export function HomeScreen() {
 
     setError(null);
 
-    const [profileResult, userCardsResult, eventsResult] = await Promise.all([
+    const [profileResult, userCardsResult, eventsResult, oneOfOneCardsResult] = await Promise.all([
       supabase
         .from('profiles')
         .select('username,country,created_at,membership_tier,member_number')
@@ -189,6 +233,15 @@ export function HomeScreen() {
         .order('starts_at', { ascending: true, nullsFirst: false })
         .order('event_date', { ascending: true })
         .limit(20),
+      supabase
+        .from('one_of_one_cards')
+        .select(
+          'id,fighter_name,set_name,card_name,card_number,parallel_name,status,primary_image_url,primary_source_url,first_seen_at,verified_at,created_at',
+        )
+        .in('status', ['verified_seen', 'verified_owned'])
+        .order('first_seen_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false })
+        .limit(3),
     ]);
 
     if (profileResult.error || userCardsResult.error || eventsResult.error) {
@@ -204,6 +257,12 @@ export function HomeScreen() {
     });
 
     setNextEvent(getNextFantasyEvent((eventsResult.data ?? []) as DashboardEvent[]));
+
+    if (oneOfOneCardsResult.error) {
+      setOneOfOneCards([]);
+    } else {
+      setOneOfOneCards((oneOfOneCardsResult.data ?? []) as OneOfOneCardPreview[]);
+    }
   }, [user?.id]);
 
   useEffect(() => {
@@ -247,6 +306,7 @@ export function HomeScreen() {
   const fantasyStatus = getFantasyStatusLabel(nextEvent);
   const fantasyIsOpen = fantasyStatus === 'PICKS OPEN';
   const slabHeight = slabWidth / SLAB_RATIO;
+  const hasRealTrackerCards = oneOfOneCards.length > 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -524,7 +584,47 @@ export function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.trackerCardRow}
           >
-            {ONE_OF_ONE_PREVIEWS.map((item) => (
+            {hasRealTrackerCards ? oneOfOneCards.map((card) => (
+              <View key={card.id} style={styles.trackerCard}>
+                <View style={styles.trackerImageArea}>
+                  <View style={styles.trackerBadgeRow}>
+                    <Text style={styles.trackerBadgeNew}>New</Text>
+                    <Text style={styles.trackerBadgeOne}>1-of-1</Text>
+                  </View>
+                  {card.primary_image_url && !failedOneOfOneImages.has(card.id) ? (
+                    <Image
+                      source={{ uri: card.primary_image_url }}
+                      style={styles.trackerImage}
+                      resizeMode="cover"
+                      onError={() => {
+                        setFailedOneOfOneImages((current) => {
+                          const next = new Set(current);
+                          next.add(card.id);
+                          return next;
+                        });
+                      }}
+                    />
+                  ) : (
+                    <View style={styles.trackerCardArt}>
+                      <Text style={styles.trackerCardArtBrand}>FCS</Text>
+                      <View style={styles.trackerCardArtRule} />
+                      <MaterialCommunityIcons color={colors.red} name="cards-outline" size={24} />
+                    </View>
+                  )}
+                </View>
+                <View style={styles.trackerCardBody}>
+                  <Text numberOfLines={2} style={styles.trackerFighter}>
+                    {(card.fighter_name || 'Unknown Fighter').toUpperCase()}
+                  </Text>
+                  <Text numberOfLines={2} style={styles.trackerCardName}>
+                    {formatTrackerCardLine(card).toUpperCase()}
+                  </Text>
+                  <Text style={styles.trackerTime}>
+                    {formatTrackerTime(card.first_seen_at || card.verified_at || card.created_at)}
+                  </Text>
+                </View>
+              </View>
+            )) : ONE_OF_ONE_PREVIEWS.map((item) => (
               <View key={item.fighter} style={styles.trackerCard}>
                 <View style={styles.trackerImageArea}>
                   <View style={styles.trackerBadgeRow}>
@@ -913,6 +1013,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     height: 108,
     justifyContent: 'center',
+  },
+  trackerImage: {
+    height: '100%',
+    width: '100%',
   },
   trackerSection: {
     marginTop: 22,
