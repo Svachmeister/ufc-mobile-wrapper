@@ -298,6 +298,10 @@ export function HomeScreen() {
     router.push('/fantasy' as never);
   };
 
+  const openOneOfOnes = () => {
+    router.push('/one-of-ones' as never);
+  };
+
   const displayName = profile?.username || user?.email?.split('@')[0] || 'Society Member';
   const memberSince = formatMemberSince(profile?.created_at ?? null);
   const membershipTier = formatMembershipTier(profile?.membership_tier);
@@ -571,10 +575,13 @@ export function HomeScreen() {
               <View style={styles.trackerDot} />
               <Text style={styles.trackerTitle}>1-of-1 Tracker</Text>
             </View>
-            <View style={styles.trackerViewAll}>
+            <Pressable
+              onPress={openOneOfOnes}
+              style={({ pressed }) => [styles.trackerViewAll, pressed ? styles.pressed : null]}
+            >
               <Text style={styles.trackerViewAllText}>View All</Text>
               <MaterialCommunityIcons color={colors.red} name="chevron-right" size={16} />
-            </View>
+            </Pressable>
           </View>
 
           <Text style={styles.trackerSubtitle}>Community-submitted first sightings</Text>

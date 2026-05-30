@@ -120,6 +120,12 @@ export default function AppLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="one-of-ones"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
