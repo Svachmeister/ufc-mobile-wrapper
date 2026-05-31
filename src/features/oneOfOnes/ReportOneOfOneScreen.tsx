@@ -1,8 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -30,6 +32,16 @@ type SourceType =
   | 'private_sale'
   | 'other';
 
+type EvidenceImage = {
+  fileName: string;
+  fileSize: number | null;
+  mimeType: string;
+  uri: string;
+};
+
+const MAX_EVIDENCE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_EVIDENCE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
 const CLAIM_OPTIONS: { label: string; value: ClaimType }[] = [
   { label: 'Public Listing', value: 'public_listing' },
   { label: 'Pulled In Break', value: 'pulled_in_break' },
@@ -54,6 +66,22 @@ function appendOptional(formData: FormData, name: string, value: string) {
   if (trimmed) formData.append(name, trimmed);
 }
 
+function getFileName(uri: string, fallback = 'evidence.jpg') {
+  const name = uri.split('/').pop()?.split('?')[0]?.trim();
+  return name || fallback;
+}
+
+function getMimeType(uri: string, fileName?: string | null, mimeType?: string | null) {
+  if (mimeType && ALLOWED_EVIDENCE_TYPES.has(mimeType)) return mimeType;
+
+  const source = `${fileName || ''} ${uri}`.toLowerCase();
+  if (source.match(/\.(jpe?g)(\?|$|\s)/)) return 'image/jpeg';
+  if (source.match(/\.(png)(\?|$|\s)/)) return 'image/png';
+  if (source.match(/\.(webp)(\?|$|\s)/)) return 'image/webp';
+
+  return mimeType || 'image/jpeg';
+}
+
 export function ReportOneOfOneScreen() {
   const [fighterName, setFighterName] = useState('');
   const [setName, setSetName] = useState('');
@@ -64,6 +92,7 @@ export function ReportOneOfOneScreen() {
   const [sourceType, setSourceType] = useState<SourceType>('ebay');
   const [sourceUrl, setSourceUrl] = useState('');
   const [description, setDescription] = useState('');
+  const [evidenceImage, setEvidenceImage] = useState<EvidenceImage | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -78,6 +107,56 @@ export function ReportOneOfOneScreen() {
     setSourceType('ebay');
     setSourceUrl('');
     setDescription('');
+    setEvidenceImage(null);
+  };
+
+  const chooseEvidenceImage = async () => {
+    setError(null);
+
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setError('Photo library access is required to attach evidence.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsEditing: false,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.85,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      if (!asset?.uri) {
+        setError('Could not read the selected image.');
+        return;
+      }
+
+      const fileName = asset.fileName || getFileName(asset.uri);
+      const mimeType = getMimeType(asset.uri, fileName, asset.mimeType);
+      const fileSize = typeof asset.fileSize === 'number' ? asset.fileSize : null;
+
+      if (!ALLOWED_EVIDENCE_TYPES.has(mimeType)) {
+        setError('Evidence image must be JPEG, PNG, or WebP.');
+        return;
+      }
+
+      if (fileSize !== null && fileSize > MAX_EVIDENCE_SIZE) {
+        setError('Evidence image must be 5 MB or smaller.');
+        return;
+      }
+
+      setEvidenceImage({
+        fileName,
+        fileSize,
+        mimeType,
+        uri: asset.uri,
+      });
+    } catch {
+      setError('Could not open the image picker.');
+    }
   };
 
   const submitReport = async () => {
@@ -89,6 +168,18 @@ export function ReportOneOfOneScreen() {
     if (!trimmedCardName) {
       setError('Card name is required.');
       return;
+    }
+
+    if (evidenceImage) {
+      if (!ALLOWED_EVIDENCE_TYPES.has(evidenceImage.mimeType)) {
+        setError('Evidence image must be JPEG, PNG, or WebP.');
+        return;
+      }
+
+      if (evidenceImage.fileSize !== null && evidenceImage.fileSize > MAX_EVIDENCE_SIZE) {
+        setError('Evidence image must be 5 MB or smaller.');
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -119,6 +210,14 @@ export function ReportOneOfOneScreen() {
       appendOptional(formData, 'parallel_name', parallelName);
       appendOptional(formData, 'source_url', sourceUrl);
       appendOptional(formData, 'description', description);
+
+      if (evidenceImage) {
+        formData.append('evidence', {
+          name: evidenceImage.fileName,
+          type: evidenceImage.mimeType,
+          uri: evidenceImage.uri,
+        } as unknown as Blob);
+      }
 
       const response = await fetch(url, {
         method: 'POST',
@@ -264,6 +363,48 @@ export function ReportOneOfOneScreen() {
             />
           </View>
 
+          <View style={styles.panel}>
+            <Text style={styles.sectionTitle}>Evidence Image</Text>
+            <Text style={styles.helperText}>
+              Optional screenshot/photo that helps moderators verify the sighting.
+            </Text>
+            {evidenceImage ? (
+              <View style={styles.evidencePreviewRow}>
+                <Image
+                  resizeMode="cover"
+                  source={{ uri: evidenceImage.uri }}
+                  style={styles.evidencePreview}
+                />
+                <View style={styles.evidenceCopy}>
+                  <Text numberOfLines={1} style={styles.evidenceTitle}>
+                    {evidenceImage.fileName || 'Evidence selected'}
+                  </Text>
+                  <Text style={styles.evidenceMeta}>
+                    {evidenceImage.fileSize === null
+                      ? evidenceImage.mimeType
+                      : `${evidenceImage.mimeType} - ${(evidenceImage.fileSize / 1024 / 1024).toFixed(1)} MB`}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+            <View style={styles.evidenceActions}>
+              <Pressable
+                onPress={chooseEvidenceImage}
+                style={({ pressed }) => [styles.secondaryButton, pressed ? styles.pressed : null]}
+              >
+                <Text style={styles.secondaryButtonText}>Choose Image</Text>
+              </Pressable>
+              {evidenceImage ? (
+                <Pressable
+                  onPress={() => setEvidenceImage(null)}
+                  style={({ pressed }) => [styles.removeButton, pressed ? styles.pressed : null]}
+                >
+                  <Text style={styles.removeButtonText}>Remove</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+
           <Pressable
             disabled={isSubmitting}
             onPress={submitReport}
@@ -372,6 +513,44 @@ const styles = StyleSheet.create({
   field: {
     gap: 7,
   },
+  evidenceActions: {
+    flexDirection: 'row',
+    gap: 9,
+  },
+  evidenceCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  evidenceMeta: {
+    color: colors.gray700,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 5,
+  },
+  evidencePreview: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    height: 58,
+    width: 58,
+  },
+  evidencePreviewRow: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 11,
+    padding: 10,
+  },
+  evidenceTitle: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
   header: {
     alignItems: 'flex-start',
     borderBottomColor: colors.ink,
@@ -455,6 +634,29 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.65,
   },
+  helperText: {
+    color: colors.gray700,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  removeButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.danger,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 46,
+  },
+  removeButtonText: {
+    color: colors.danger,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+  },
   required: {
     color: colors.red,
   },
@@ -526,6 +728,23 @@ const styles = StyleSheet.create({
     letterSpacing: -0.6,
     lineHeight: 31,
     marginTop: 2,
+    textTransform: 'uppercase',
+  },
+  secondaryButton: {
+    alignItems: 'center',
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 46,
+  },
+  secondaryButtonText: {
+    color: colors.textInverse,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
 });
