@@ -25,6 +25,7 @@ import { buildWebApiUrl } from '@/src/lib/webApi';
 type ReportSource =
   | 'seen_on_ebay'
   | 'seen_on_whatnot'
+  | 'seen_on_fanatics'
   | 'seen_on_facebook'
   | 'seen_on_instagram'
   | 'pulled_by_me'
@@ -75,6 +76,7 @@ const MAX_EVIDENCE_LONG_SIDE = 1600;
 const REPORT_SOURCE_OPTIONS: { label: string; value: ReportSource }[] = [
   { label: 'Seen on eBay', value: 'seen_on_ebay' },
   { label: 'Seen on Whatnot', value: 'seen_on_whatnot' },
+  { label: 'Seen on Fanatics Live', value: 'seen_on_fanatics' },
   { label: 'Seen on Facebook', value: 'seen_on_facebook' },
   { label: 'Seen on Instagram', value: 'seen_on_instagram' },
   { label: 'Pulled by me', value: 'pulled_by_me' },
