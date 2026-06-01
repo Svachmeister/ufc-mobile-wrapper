@@ -302,6 +302,10 @@ export function HomeScreen() {
     router.push('/one-of-ones' as never);
   };
 
+  const openOneOfOneDetail = (id: string) => {
+    router.push(`/one-of-ones/${id}` as never);
+  };
+
   const displayName = profile?.username || user?.email?.split('@')[0] || 'Society Member';
   const memberSince = formatMemberSince(profile?.created_at ?? null);
   const membershipTier = formatMembershipTier(profile?.membership_tier);
@@ -592,7 +596,11 @@ export function HomeScreen() {
             contentContainerStyle={styles.trackerCardRow}
           >
             {hasRealTrackerCards ? oneOfOneCards.map((card) => (
-              <View key={card.id} style={styles.trackerCard}>
+              <Pressable
+                key={card.id}
+                onPress={() => openOneOfOneDetail(card.id)}
+                style={({ pressed }) => [styles.trackerCard, pressed ? styles.pressed : null]}
+              >
                 <View style={styles.trackerImageArea}>
                   <View style={styles.trackerBadgeRow}>
                     <Text style={styles.trackerBadgeNew}>New</Text>
@@ -630,7 +638,7 @@ export function HomeScreen() {
                     {formatTrackerTime(card.first_seen_at || card.verified_at || card.created_at)}
                   </Text>
                 </View>
-              </View>
+              </Pressable>
             )) : ONE_OF_ONE_PREVIEWS.map((item) => (
               <View key={item.fighter} style={styles.trackerCard}>
                 <View style={styles.trackerImageArea}>
