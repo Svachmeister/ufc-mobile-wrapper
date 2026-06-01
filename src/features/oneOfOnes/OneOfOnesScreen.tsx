@@ -35,7 +35,7 @@ type OneOfOneCard = {
   verified_at: string | null;
 };
 
-type TrackerFilter = 'all' | 'owned' | 'surfaced';
+type TrackerFilter = 'all' | 'pulled';
 
 const TRACKER_SELECT = [
   'id',
@@ -53,8 +53,7 @@ const TRACKER_SELECT = [
 ].join(',');
 
 const FILTERS: { key: TrackerFilter; label: string }[] = [
-  { key: 'surfaced', label: 'Surfaced' },
-  { key: 'owned', label: 'Owned' },
+  { key: 'pulled', label: 'Pulled' },
   { key: 'all', label: 'All' },
 ];
 
@@ -86,8 +85,8 @@ function formatCardLine(card: OneOfOneCard) {
 }
 
 function getStatusLabel(status: string | null) {
-  if (status === 'verified_owned') return 'OWNED';
-  return 'SURFACED';
+  if (status === 'verified_seen' || status === 'verified_owned') return 'PULLED';
+  return 'PULLED';
 }
 
 function cardMatchesSearch(card: OneOfOneCard, search: string) {
@@ -166,8 +165,9 @@ export function OneOfOnesScreen() {
 
   const filteredCards = useMemo(() => {
     const statusFilteredCards = cards.filter((card) => {
-      if (filter === 'owned') return card.status === 'verified_owned';
-      if (filter === 'surfaced') return card.status === 'verified_seen';
+      if (filter === 'pulled') {
+        return card.status === 'verified_seen' || card.status === 'verified_owned';
+      }
       return true;
     });
 
@@ -207,7 +207,9 @@ export function OneOfOnesScreen() {
               <View style={styles.headerCopy}>
                 <Text style={styles.kicker}>Fight Card Society</Text>
                 <Text style={styles.title}>1-of-1 Tracker</Text>
-                <Text style={styles.subtitle}>Verified first sightings from the Society</Text>
+                <Text style={styles.subtitle}>
+                  Verified 1-of-1 cards that have been pulled or publicly reported.
+                </Text>
               </View>
             </View>
 
@@ -322,16 +324,13 @@ function TrackerCard({
   onPress: () => void;
 }) {
   const showImage = Boolean(card.primary_image_url && !hasImageFailed);
-  const isOwned = card.status === 'verified_owned';
   const timeValue = card.first_seen_at || card.verified_at || card.created_at;
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed ? styles.pressed : null]}>
       <View style={styles.imageArea}>
         <View style={styles.badgeRow}>
-          <Text style={[styles.statusBadge, isOwned ? styles.statusBadgeOwned : null]}>
-            {getStatusLabel(card.status)}
-          </Text>
+          <Text style={styles.statusBadge}>{getStatusLabel(card.status)}</Text>
           <Text style={styles.oneBadge}>1-of-1</Text>
         </View>
         {showImage ? (
@@ -635,10 +634,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 3,
     textTransform: 'uppercase',
-  },
-  statusBadgeOwned: {
-    backgroundColor: colors.ink,
-    borderColor: colors.ink,
   },
   subtitle: {
     color: colors.gray700,

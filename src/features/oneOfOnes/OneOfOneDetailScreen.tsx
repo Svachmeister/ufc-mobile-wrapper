@@ -63,8 +63,8 @@ const DETAIL_SELECT = [
 ].join(',');
 
 function getStatusLabel(status: string | null) {
-  if (status === 'verified_owned') return 'OWNED';
-  return 'SURFACED';
+  if (status === 'verified_seen' || status === 'verified_owned') return 'PULLED';
+  return 'PULLED';
 }
 
 function formatDisplayDate(value: string | null) {
@@ -186,8 +186,6 @@ export function OneOfOneDetailScreen() {
   }
 
   const showImage = Boolean(card.primary_image_url && !hasImageFailed);
-  const isOwned = card.status === 'verified_owned';
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -215,9 +213,7 @@ export function OneOfOneDetailScreen() {
 
         <View style={styles.imageArea}>
           <View style={styles.badgeRow}>
-            <Text style={[styles.statusBadge, isOwned ? styles.statusBadgeOwned : null]}>
-              {getStatusLabel(card.status)}
-            </Text>
+            <Text style={styles.statusBadge}>{getStatusLabel(card.status)}</Text>
             <Text style={styles.oneBadge}>1-of-1</Text>
           </View>
           {showImage ? (
@@ -510,10 +506,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 3,
     textTransform: 'uppercase',
-  },
-  statusBadgeOwned: {
-    backgroundColor: colors.ink,
-    borderColor: colors.ink,
   },
   subtitle: {
     color: colors.gray700,
