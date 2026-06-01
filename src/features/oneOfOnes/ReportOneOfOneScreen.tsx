@@ -22,16 +22,13 @@ import { supabase } from '@/src/lib/supabase';
 import { colors, radius } from '@/src/lib/theme/tokens';
 import { buildWebApiUrl } from '@/src/lib/webApi';
 
-type ClaimType = 'i_own_this' | 'i_saw_this' | 'public_listing' | 'pulled_in_break' | 'other';
-type SourceType =
-  | 'owned_by_me'
-  | 'ebay'
-  | 'instagram'
-  | 'facebook'
-  | 'whatnot'
-  | 'break_livestream'
-  | 'private_sale'
-  | 'other';
+type ReportSource =
+  | 'seen_on_ebay'
+  | 'seen_on_whatnot'
+  | 'seen_on_facebook'
+  | 'seen_on_instagram'
+  | 'pulled_by_me'
+  | 'other_source';
 
 type EvidenceImage = {
   fileName: string;
@@ -75,23 +72,13 @@ const COMPRESSED_EVIDENCE_TYPE = 'image/jpeg';
 const COMPRESSED_EVIDENCE_QUALITY = 0.75;
 const MAX_EVIDENCE_LONG_SIDE = 1600;
 
-const CLAIM_OPTIONS: { label: string; value: ClaimType }[] = [
-  { label: 'Public Listing', value: 'public_listing' },
-  { label: 'Pulled In Break', value: 'pulled_in_break' },
-  { label: 'I Own This', value: 'i_own_this' },
-  { label: 'I Saw This', value: 'i_saw_this' },
-  { label: 'Other', value: 'other' },
-];
-
-const SOURCE_OPTIONS: { label: string; value: SourceType }[] = [
-  { label: 'eBay', value: 'ebay' },
-  { label: 'Instagram', value: 'instagram' },
-  { label: 'Facebook', value: 'facebook' },
-  { label: 'Whatnot', value: 'whatnot' },
-  { label: 'Break Livestream', value: 'break_livestream' },
-  { label: 'Private Sale', value: 'private_sale' },
-  { label: 'Owned By Me', value: 'owned_by_me' },
-  { label: 'Other', value: 'other' },
+const REPORT_SOURCE_OPTIONS: { label: string; value: ReportSource }[] = [
+  { label: 'Seen on eBay', value: 'seen_on_ebay' },
+  { label: 'Seen on Whatnot', value: 'seen_on_whatnot' },
+  { label: 'Seen on Facebook', value: 'seen_on_facebook' },
+  { label: 'Seen on Instagram', value: 'seen_on_instagram' },
+  { label: 'Pulled by me', value: 'pulled_by_me' },
+  { label: 'Other source', value: 'other_source' },
 ];
 
 function appendOptional(formData: FormData, name: string, value: string) {
@@ -250,8 +237,7 @@ export function ReportOneOfOneScreen() {
   const [candidateCardsLoading, setCandidateCardsLoading] = useState(false);
   const [candidateCardsError, setCandidateCardsError] = useState<string | null>(null);
   const [cardNumber, setCardNumber] = useState('');
-  const [claimType, setClaimType] = useState<ClaimType>('public_listing');
-  const [sourceType, setSourceType] = useState<SourceType>('ebay');
+  const [reportSource, setReportSource] = useState<ReportSource | null>(null);
   const [sourceUrl, setSourceUrl] = useState('');
   const [description, setDescription] = useState('');
   const [evidenceImage, setEvidenceImage] = useState<EvidenceImage | null>(null);
@@ -272,8 +258,7 @@ export function ReportOneOfOneScreen() {
     setCandidateCardsLoading(false);
     setCandidateCardsError(null);
     setCardNumber('');
-    setClaimType('public_listing');
-    setSourceType('ebay');
+    setReportSource(null);
     setSourceUrl('');
     setDescription('');
     setEvidenceImage(null);
@@ -484,6 +469,11 @@ export function ReportOneOfOneScreen() {
       return;
     }
 
+    if (!reportSource) {
+      setError('Please choose where this 1-of-1 was seen.');
+      return;
+    }
+
     if (evidenceImage) {
       const evidenceType = getAcceptedMimeType(
         evidenceImage.uri,
@@ -522,8 +512,7 @@ export function ReportOneOfOneScreen() {
 
       const formData = new FormData();
       formData.append('card_name', trimmedCardName);
-      formData.append('claim_type', claimType);
-      formData.append('source_type', sourceType);
+      formData.append('report_source', reportSource);
       if (selectedCandidateCardId) {
         formData.append('candidate_card_id', selectedCandidateCardId);
       }
@@ -696,20 +685,12 @@ export function ReportOneOfOneScreen() {
           </View>
 
           <View style={styles.panel}>
-            <Text style={styles.sectionTitle}>Claim type</Text>
+            <Text style={styles.sectionTitle}>Report Source</Text>
+            <Text style={styles.helperText}>Where did you see this 1-of-1?</Text>
             <OptionGrid
-              options={CLAIM_OPTIONS}
-              selected={claimType}
-              onSelect={setClaimType}
-            />
-          </View>
-
-          <View style={styles.panel}>
-            <Text style={styles.sectionTitle}>Source type</Text>
-            <OptionGrid
-              options={SOURCE_OPTIONS}
-              selected={sourceType}
-              onSelect={setSourceType}
+              options={REPORT_SOURCE_OPTIONS}
+              selected={reportSource}
+              onSelect={setReportSource}
             />
           </View>
 
@@ -718,11 +699,12 @@ export function ReportOneOfOneScreen() {
             <Field
               autoCapitalize="none"
               keyboardType="url"
-              label="Source URL"
+              label="Source link"
               onChangeText={setSourceUrl}
               placeholder="https://..."
               value={sourceUrl}
             />
+            <Text style={styles.fieldHint}>Optional link to listing, post, or pull proof.</Text>
             <Field
               label="Notes / description"
               multiline
@@ -828,7 +810,7 @@ function OptionGrid<T extends string>({
 }: {
   onSelect: (value: T) => void;
   options: { label: string; value: T }[];
-  selected: T;
+  selected: T | null;
 }) {
   return (
     <View style={styles.optionGrid}>
