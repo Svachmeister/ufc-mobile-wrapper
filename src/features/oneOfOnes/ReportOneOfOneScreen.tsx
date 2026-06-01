@@ -524,6 +524,9 @@ export function ReportOneOfOneScreen() {
       formData.append('card_name', trimmedCardName);
       formData.append('claim_type', claimType);
       formData.append('source_type', sourceType);
+      if (selectedCandidateCardId) {
+        formData.append('candidate_card_id', selectedCandidateCardId);
+      }
       appendOptional(formData, 'fighter_name', fighterName);
       appendOptional(formData, 'set_name', setName);
       appendOptional(formData, 'card_number', cardNumber);
