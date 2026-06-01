@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -17,45 +17,51 @@ import {
 import { sharedScreenStyles } from '@/src/components/ui/NativePrimitives';
 import { LoadingScreen, ScreenState } from '@/src/components/ui/ScreenState';
 import { useAuth } from '@/src/features/auth/AuthProvider';
-import { supabase } from '@/src/lib/supabase';
 import { colors, radius } from '@/src/lib/theme/tokens';
+import { buildWebApiUrl } from '@/src/lib/webApi';
 
-type OneOfOneCard = {
+type TrackerStatus = 'pulled' | 'not_seen';
+
+type OneOfOneTrackerRow = {
+  candidate_card_id: string;
   card_name: string | null;
   card_number: string | null;
-  created_at: string | null;
   fighter_name: string | null;
   first_seen_at: string | null;
   id: string;
-  parallel_name: string | null;
+  print_run: string | number | null;
   primary_image_url: string | null;
   primary_source_url: string | null;
   set_name: string | null;
-  status: 'verified_seen' | 'verified_owned' | string | null;
+  subset: string | null;
+  tracker_card_id: string | null;
+  tracker_status: TrackerStatus;
+  variation: string | null;
   verified_at: string | null;
 };
 
-type TrackerFilter = 'all' | 'pulled';
+type TrackerFeedResponse = {
+  rows?: OneOfOneTrackerRow[];
+  totalLoaded?: number;
+};
 
-const TRACKER_SELECT = [
-  'id',
-  'fighter_name',
-  'set_name',
-  'card_name',
-  'card_number',
-  'parallel_name',
-  'status',
-  'primary_image_url',
-  'primary_source_url',
-  'first_seen_at',
-  'verified_at',
-  'created_at',
-].join(',');
+type TrackerFilter = 'all' | 'pulled' | 'not_seen';
 
 const FILTERS: { key: TrackerFilter; label: string }[] = [
-  { key: 'pulled', label: 'Pulled' },
   { key: 'all', label: 'All' },
+  { key: 'pulled', label: 'Pulled' },
+  { key: 'not_seen', label: 'Not Seen' },
 ];
+
+const TRACKER_LIMIT = '100';
+
+function getStatusLabel(status: TrackerStatus) {
+  return status === 'not_seen' ? 'NOT SEEN' : 'PULLED';
+}
+
+function getStatusHelper(status: TrackerStatus) {
+  return status === 'not_seen' ? 'No verified pull yet.' : null;
+}
 
 function formatRelativeTime(value: string | null) {
   if (!value) return 'RECENT';
@@ -75,69 +81,91 @@ function formatRelativeTime(value: string | null) {
   return `${diffDays} DAYS AGO`;
 }
 
-function formatCardLine(card: OneOfOneCard) {
+function formatCardLine(card: OneOfOneTrackerRow) {
   const primary = card.card_name || card.set_name || 'Unknown Card';
-  const details = [card.parallel_name, card.card_number ? `#${card.card_number}` : null]
+  const details = [card.variation, card.card_number ? `#${card.card_number}` : null]
     .filter(Boolean)
     .join(' - ');
 
   return [primary, details].filter(Boolean).join(' ');
 }
 
-function getStatusLabel(status: string | null) {
-  if (status === 'verified_seen' || status === 'verified_owned') return 'PULLED';
-  return 'PULLED';
-}
-
-function cardMatchesSearch(card: OneOfOneCard, search: string) {
-  const term = search.trim().toLowerCase();
-  if (!term) return true;
-
-  return [
-    card.fighter_name,
-    card.set_name,
-    card.card_name,
-    card.card_number,
-    card.parallel_name,
-    getStatusLabel(card.status),
-  ].filter(Boolean).join(' ').toLowerCase().includes(term);
-}
-
 export function OneOfOnesScreen() {
-  const { user } = useAuth();
-  const [cards, setCards] = useState<OneOfOneCard[]>([]);
+  const { session, user } = useAuth();
+  const [cards, setCards] = useState<OneOfOneTrackerRow[]>([]);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<TrackerFilter>('all');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [loadedCount, setLoadedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const loadCards = useCallback(async () => {
     if (!user?.id) return;
 
-    const { data, error: loadError } = await supabase
-      .from('one_of_one_cards')
-      .select(TRACKER_SELECT)
-      .in('status', ['verified_seen', 'verified_owned'])
-      .order('first_seen_at', { ascending: false, nullsFirst: false })
-      .order('created_at', { ascending: false })
-      .limit(50);
-
-    if (loadError) {
-      setError('Could not load 1-of-1 tracker cards.');
+    const accessToken = session?.access_token;
+    if (!accessToken) {
+      setError('Sign in again to load the 1-of-1 tracker.');
       setCards([]);
+      setLoadedCount(0);
       return;
     }
 
-    setError(null);
-    setCards(((data ?? []) as unknown) as OneOfOneCard[]);
-  }, [user?.id]);
+    const url = buildWebApiUrl('/api/one-of-one-tracker', {
+      limit: TRACKER_LIMIT,
+      status: filter,
+      ...(debouncedSearch ? { q: debouncedSearch } : {}),
+    });
+
+    if (!url) {
+      setError('Tracker API is not configured for this native build.');
+      setCards([]);
+      setLoadedCount(0);
+      return;
+    }
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        setError('Could not load 1-of-1 tracker cards.');
+        setCards([]);
+        setLoadedCount(0);
+        return;
+      }
+
+      const payload = (await response.json()) as TrackerFeedResponse;
+      const rows = Array.isArray(payload.rows) ? payload.rows : [];
+
+      setError(null);
+      setCards(rows);
+      setLoadedCount(typeof payload.totalLoaded === 'number' ? payload.totalLoaded : rows.length);
+    } catch {
+      setError('Could not load 1-of-1 tracker cards.');
+      setCards([]);
+      setLoadedCount(0);
+    }
+  }, [debouncedSearch, filter, session?.access_token, user?.id]);
 
   useEffect(() => {
     let mounted = true;
 
     const run = async () => {
+      setIsLoading(true);
       await loadCards();
       if (mounted) setIsLoading(false);
     };
@@ -163,17 +191,6 @@ export function OneOfOnesScreen() {
     router.push(`/one-of-ones/${id}` as never);
   };
 
-  const filteredCards = useMemo(() => {
-    const statusFilteredCards = cards.filter((card) => {
-      if (filter === 'pulled') {
-        return card.status === 'verified_seen' || card.status === 'verified_owned';
-      }
-      return true;
-    });
-
-    return statusFilteredCards.filter((card) => cardMatchesSearch(card, search));
-  }, [cards, filter, search]);
-
   const hasCards = cards.length > 0;
   const hasSearchOrFilter = Boolean(search.trim()) || filter !== 'all';
 
@@ -183,7 +200,7 @@ export function OneOfOnesScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       <FlatList
-        data={filteredCards}
+        data={cards}
         keyExtractor={(card) => card.id}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -255,7 +272,7 @@ export function OneOfOnesScreen() {
 
             {hasCards ? (
               <Text style={styles.resultCount}>
-                Showing {filteredCards.length} of {cards.length} tracker cards
+                Showing {loadedCount} tracker cards
               </Text>
             ) : null}
 
@@ -284,11 +301,11 @@ export function OneOfOnesScreen() {
           !error ? (
             <View style={styles.emptyWrap}>
               <Text style={styles.emptyTitle}>
-                {hasCards && hasSearchOrFilter
+                {hasSearchOrFilter
                   ? 'No tracker cards match this search.'
-                  : 'No verified 1-of-1 cards yet.'}
+                  : 'No tracker cards loaded yet.'}
               </Text>
-              <Text style={styles.emptyText}>Approved Society sightings will appear here.</Text>
+              <Text style={styles.emptyText}>Pulled and Not Seen tracker candidates will appear here.</Text>
             </View>
           ) : null
         )}
@@ -303,7 +320,11 @@ export function OneOfOnesScreen() {
                 return next;
               });
             }}
-            onPress={() => openCardDetail(item.id)}
+            onPress={
+              item.tracker_status === 'pulled' && item.tracker_card_id
+                ? () => openCardDetail(item.tracker_card_id as string)
+                : undefined
+            }
           />
         )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -318,19 +339,33 @@ function TrackerCard({
   onImageError,
   onPress,
 }: {
-  card: OneOfOneCard;
+  card: OneOfOneTrackerRow;
   hasImageFailed: boolean;
   onImageError: () => void;
-  onPress: () => void;
+  onPress?: () => void;
 }) {
   const showImage = Boolean(card.primary_image_url && !hasImageFailed);
-  const timeValue = card.first_seen_at || card.verified_at || card.created_at;
+  const timeValue = card.first_seen_at || card.verified_at;
+  const statusHelper = getStatusHelper(card.tracker_status);
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed ? styles.pressed : null]}>
+    <Pressable
+      disabled={!onPress}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.card,
+        card.tracker_status === 'not_seen' ? styles.notSeenCard : null,
+        pressed ? styles.pressed : null,
+      ]}
+    >
       <View style={styles.imageArea}>
         <View style={styles.badgeRow}>
-          <Text style={styles.statusBadge}>{getStatusLabel(card.status)}</Text>
+          <Text style={[
+            styles.statusBadge,
+            card.tracker_status === 'not_seen' ? styles.notSeenStatusBadge : null,
+          ]}>
+            {getStatusLabel(card.tracker_status)}
+          </Text>
           <Text style={styles.oneBadge}>1-of-1</Text>
         </View>
         {showImage ? (
@@ -352,7 +387,7 @@ function TrackerCard({
       <View style={styles.cardBody}>
         <View style={styles.cardTopLine}>
           <Text numberOfLines={1} style={styles.timeText}>
-            {formatRelativeTime(timeValue)}
+            {statusHelper || formatRelativeTime(timeValue)}
           </Text>
         </View>
         <Text numberOfLines={2} style={styles.fighterName}>
@@ -398,6 +433,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 3,
     borderWidth: 1,
     overflow: 'hidden',
+  },
+  notSeenCard: {
+    borderTopColor: colors.border,
   },
   cardArt: {
     alignItems: 'center',
@@ -552,6 +590,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 3,
     textTransform: 'uppercase',
+  },
+  notSeenStatusBadge: {
+    backgroundColor: colors.surface,
+    borderColor: colors.ink,
+    color: colors.ink,
   },
   pressed: {
     opacity: 0.65,
