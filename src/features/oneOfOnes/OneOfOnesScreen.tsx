@@ -144,6 +144,10 @@ export function OneOfOnesScreen() {
     router.push('/report-one-of-one' as never);
   };
 
+  const openCardDetail = (id: string) => {
+    router.push(`/one-of-ones/${id}` as never);
+  };
+
   const filteredCards = useMemo(() => {
     if (filter === 'owned') return cards.filter((card) => card.status === 'verified_owned');
     if (filter === 'surfaced') return cards.filter((card) => card.status === 'verified_seen');
@@ -241,6 +245,7 @@ export function OneOfOnesScreen() {
                 return next;
               });
             }}
+            onPress={() => openCardDetail(item.id)}
           />
         )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -253,17 +258,19 @@ function TrackerCard({
   card,
   hasImageFailed,
   onImageError,
+  onPress,
 }: {
   card: OneOfOneCard;
   hasImageFailed: boolean;
   onImageError: () => void;
+  onPress: () => void;
 }) {
   const showImage = Boolean(card.primary_image_url && !hasImageFailed);
   const isOwned = card.status === 'verified_owned';
   const timeValue = card.first_seen_at || card.verified_at || card.created_at;
 
   return (
-    <View style={styles.card}>
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed ? styles.pressed : null]}>
       <View style={styles.imageArea}>
         <View style={styles.badgeRow}>
           <Text style={[styles.statusBadge, isOwned ? styles.statusBadgeOwned : null]}>
@@ -305,7 +312,7 @@ function TrackerCard({
           </Text>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 

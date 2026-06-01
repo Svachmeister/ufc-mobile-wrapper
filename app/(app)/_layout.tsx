@@ -127,6 +127,12 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
+        name="one-of-ones/[id]"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
         name="report-one-of-one"
         options={{
           href: null,
