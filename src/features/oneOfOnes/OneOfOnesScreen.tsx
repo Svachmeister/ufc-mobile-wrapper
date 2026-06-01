@@ -10,6 +10,7 @@ import {
   SafeAreaView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
@@ -89,11 +90,26 @@ function getStatusLabel(status: string | null) {
   return 'SURFACED';
 }
 
+function cardMatchesSearch(card: OneOfOneCard, search: string) {
+  const term = search.trim().toLowerCase();
+  if (!term) return true;
+
+  return [
+    card.fighter_name,
+    card.set_name,
+    card.card_name,
+    card.card_number,
+    card.parallel_name,
+    getStatusLabel(card.status),
+  ].filter(Boolean).join(' ').toLowerCase().includes(term);
+}
+
 export function OneOfOnesScreen() {
   const { user } = useAuth();
   const [cards, setCards] = useState<OneOfOneCard[]>([]);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<TrackerFilter>('all');
+  const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -149,10 +165,17 @@ export function OneOfOnesScreen() {
   };
 
   const filteredCards = useMemo(() => {
-    if (filter === 'owned') return cards.filter((card) => card.status === 'verified_owned');
-    if (filter === 'surfaced') return cards.filter((card) => card.status === 'verified_seen');
-    return cards;
-  }, [cards, filter]);
+    const statusFilteredCards = cards.filter((card) => {
+      if (filter === 'owned') return card.status === 'verified_owned';
+      if (filter === 'surfaced') return card.status === 'verified_seen';
+      return true;
+    });
+
+    return statusFilteredCards.filter((card) => cardMatchesSearch(card, search));
+  }, [cards, filter, search]);
+
+  const hasCards = cards.length > 0;
+  const hasSearchOrFilter = Boolean(search.trim()) || filter !== 'all';
 
   if (isLoading) return <LoadingScreen label="Loading tracker" />;
 
@@ -188,6 +211,29 @@ export function OneOfOnesScreen() {
               </View>
             </View>
 
+            <View style={styles.searchWrap}>
+              <MaterialCommunityIcons color={colors.gray700} name="magnify" size={19} />
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                onChangeText={setSearch}
+                placeholder="Search fighter, set, card, number"
+                placeholderTextColor={colors.muted}
+                style={styles.searchInput}
+                value={search}
+              />
+              {search ? (
+                <Pressable
+                  accessibilityLabel="Clear search"
+                  hitSlop={8}
+                  onPress={() => setSearch('')}
+                  style={({ pressed }) => [styles.clearSearchButton, pressed ? styles.pressed : null]}
+                >
+                  <MaterialCommunityIcons color={colors.ink} name="close" size={17} />
+                </Pressable>
+              ) : null}
+            </View>
+
             <View style={styles.filterRow}>
               {FILTERS.map((item) => {
                 const isActive = filter === item.key;
@@ -204,6 +250,12 @@ export function OneOfOnesScreen() {
                 );
               })}
             </View>
+
+            {hasCards ? (
+              <Text style={styles.resultCount}>
+                Showing {filteredCards.length} of {cards.length} tracker cards
+              </Text>
+            ) : null}
 
             <Pressable
               onPress={openReportForm}
@@ -229,7 +281,11 @@ export function OneOfOnesScreen() {
         ListEmptyComponent={(
           !error ? (
             <View style={styles.emptyWrap}>
-              <Text style={styles.emptyTitle}>No verified 1-of-1 cards yet.</Text>
+              <Text style={styles.emptyTitle}>
+                {hasCards && hasSearchOrFilter
+                  ? 'No tracker cards match this search.'
+                  : 'No verified 1-of-1 cards yet.'}
+              </Text>
               <Text style={styles.emptyText}>Approved Society sightings will appear here.</Text>
             </View>
           ) : null
@@ -387,6 +443,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+  clearSearchButton: {
+    alignItems: 'center',
+    height: 30,
+    justifyContent: 'center',
+    width: 30,
+  },
   container: {
     backgroundColor: colors.canvas,
     flex: 1,
@@ -518,9 +580,37 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
+  resultCount: {
+    color: colors.gray700,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    marginTop: -5,
+    textTransform: 'uppercase',
+  },
   scrollContent: {
     ...sharedScreenStyles.scrollContent,
     gap: 13,
+  },
+  searchInput: {
+    color: colors.ink,
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '800',
+    minHeight: 44,
+    padding: 0,
+  },
+  searchWrap: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.ink,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+    minHeight: 48,
+    paddingHorizontal: 12,
   },
   separator: {
     height: 12,
