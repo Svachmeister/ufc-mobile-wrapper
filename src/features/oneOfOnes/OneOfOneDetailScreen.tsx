@@ -206,8 +206,8 @@ export function OneOfOneDetailScreen() {
           </Pressable>
           <View style={styles.headerCopy}>
             <Text style={styles.kicker}>1-of-1 Tracker</Text>
-            <Text style={styles.title}>Card Detail</Text>
-            <Text style={styles.subtitle}>Verified Society sighting</Text>
+            <Text style={styles.title}>Pulled 1-of-1</Text>
+            <Text style={styles.subtitle}>Verified chase-card sighting</Text>
           </View>
         </View>
 
@@ -233,6 +233,11 @@ export function OneOfOneDetailScreen() {
         </View>
 
         <View style={styles.detailPanel}>
+          <View style={styles.detailTopLine}>
+            <Text style={styles.statusLabel}>{getStatusLabel(card.status)}</Text>
+            <Text numberOfLines={1} style={styles.dateText}>{detailDate}</Text>
+          </View>
+
           <Text style={styles.fighterName}>
             {(card.fighter_name || 'Unknown Fighter').toUpperCase()}
           </Text>
@@ -241,21 +246,25 @@ export function OneOfOneDetailScreen() {
           <View style={styles.metaGrid}>
             <InfoItem label="Card No." value={card.card_number ? `#${card.card_number}` : 'TBA'} />
             <InfoItem label="Set" value={card.set_name || 'Unknown Set'} />
+            <InfoItem label="Parallel" value={card.parallel_name || '1-of-1'} />
           </View>
 
-          <Text style={styles.dateText}>{detailDate}</Text>
-
           {card.primary_source_url ? (
-            <Pressable
-              onPress={openSource}
-              style={({ pressed }) => [styles.sourceButton, pressed ? styles.pressed : null]}
-            >
-              <View style={styles.sourceButtonCopy}>
-                <MaterialCommunityIcons color={colors.textInverse} name="open-in-new" size={17} />
-                <Text style={styles.sourceButtonText}>Open Source</Text>
+            <View style={styles.sourcePanel}>
+              <View style={styles.sourceCopy}>
+                <Text style={styles.sourceKicker}>Sighting source</Text>
+                <Text numberOfLines={1} style={styles.sourceText}>
+                  Verification link attached
+                </Text>
               </View>
-              <MaterialCommunityIcons color={colors.textInverse} name="chevron-right" size={18} />
-            </Pressable>
+              <Pressable
+                onPress={openSource}
+                style={({ pressed }) => [styles.sourceButton, pressed ? styles.pressed : null]}
+              >
+                <MaterialCommunityIcons color={colors.textInverse} name="open-in-new" size={16} />
+                <Text style={styles.sourceButtonText}>Open</Text>
+              </Pressable>
+            </View>
           ) : null}
         </View>
 
@@ -295,20 +304,20 @@ const styles = StyleSheet.create({
   badgeRow: {
     flexDirection: 'row',
     gap: 5,
-    left: 12,
+    left: 11,
     position: 'absolute',
-    top: 12,
+    top: 11,
     zIndex: 2,
   },
   cardArt: {
     alignItems: 'center',
     backgroundColor: colors.ink,
     borderColor: colors.red,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    height: 138,
+    height: 128,
     justifyContent: 'center',
-    width: 106,
+    width: 98,
   },
   cardArtBrand: {
     color: colors.textInverse,
@@ -328,10 +337,10 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     color: colors.textSoft,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '900',
     letterSpacing: 0.3,
-    lineHeight: 19,
+    lineHeight: 18,
     marginTop: 8,
     textTransform: 'uppercase',
   },
@@ -340,28 +349,81 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dateText: {
-    color: colors.red,
+    color: colors.gray700,
+    flex: 1,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.8,
-    marginTop: 14,
+    textAlign: 'right',
     textTransform: 'uppercase',
   },
   detailPanel: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.md,
-    borderTopColor: colors.red,
-    borderTopWidth: 3,
+    borderRadius: radius.sm,
+    borderTopColor: colors.ink,
+    borderTopWidth: 4,
     borderWidth: 1,
     padding: 16,
   },
+  detailTopLine: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+    marginBottom: 13,
+  },
+  sourcePanel: {
+    alignItems: 'center',
+    backgroundColor: '#fbfaf7',
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    marginTop: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  sourceCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  sourceKicker: {
+    color: colors.red,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+  },
+  sourceText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 4,
+    textTransform: 'uppercase',
+  },
+  statusLabel: {
+    backgroundColor: colors.red,
+    borderColor: colors.red,
+    borderRadius: 2,
+    borderWidth: 1,
+    color: colors.textInverse,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    overflow: 'hidden',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    textTransform: 'uppercase',
+  },
   fighterName: {
     color: colors.ink,
-    fontSize: 28,
+    fontSize: 31,
     fontWeight: '900',
     letterSpacing: -0.5,
-    lineHeight: 31,
+    lineHeight: 34,
     textTransform: 'uppercase',
   },
   header: {
@@ -378,21 +440,24 @@ const styles = StyleSheet.create({
   },
   imageArea: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderColor: colors.border,
-    borderRadius: radius.md,
+    backgroundColor: '#f1f1ec',
+    borderColor: colors.ink,
+    borderRadius: radius.sm,
+    borderTopColor: colors.red,
+    borderTopWidth: 4,
     borderWidth: 1,
-    height: 260,
+    height: 250,
     justifyContent: 'center',
     overflow: 'hidden',
   },
   infoItem: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: '#fbfaf7',
     borderColor: colors.border,
     borderRadius: radius.sm,
     borderWidth: 1,
     flex: 1,
-    minHeight: 68,
+    minWidth: '30%',
+    minHeight: 70,
     padding: 10,
   },
   infoLabel: {
@@ -419,13 +484,14 @@ const styles = StyleSheet.create({
   },
   metaGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
     marginTop: 16,
   },
   notesPanel: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     borderWidth: 1,
     padding: 16,
   },
@@ -439,15 +505,15 @@ const styles = StyleSheet.create({
   oneBadge: {
     backgroundColor: colors.surface,
     borderColor: colors.red,
-    borderRadius: radius.sm,
+    borderRadius: 2,
     borderWidth: 1,
     color: colors.red,
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: '900',
     letterSpacing: 0.7,
     overflow: 'hidden',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
     textTransform: 'uppercase',
   },
   pressed: {
@@ -476,9 +542,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     borderWidth: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
-    minHeight: 48,
+    gap: 6,
+    justifyContent: 'center',
+    minHeight: 38,
     paddingHorizontal: 12,
   },
   sourceButtonCopy: {
@@ -488,7 +554,7 @@ const styles = StyleSheet.create({
   },
   sourceButtonText: {
     color: colors.textInverse,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
@@ -496,15 +562,15 @@ const styles = StyleSheet.create({
   statusBadge: {
     backgroundColor: colors.red,
     borderColor: colors.red,
-    borderRadius: radius.sm,
+    borderRadius: 2,
     borderWidth: 1,
     color: colors.textInverse,
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: '900',
     letterSpacing: 0.7,
     overflow: 'hidden',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
     textTransform: 'uppercase',
   },
   subtitle: {
