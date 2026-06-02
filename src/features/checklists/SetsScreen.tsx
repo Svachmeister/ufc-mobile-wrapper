@@ -21,6 +21,7 @@ import {
   type NativeChecklistSet,
   type NativeChecklistWritableStatus,
   CHECKLIST_CARD_PAGE_SIZE,
+  getNextChecklistStatus,
   loadNativeChecklists,
   loadNativeSetCards,
   saveNativeChecklistStatus,
@@ -39,6 +40,16 @@ type SetsState = {
 };
 
 type CardFilter = 'all' | 'missing' | 'owned' | 'wanted';
+
+type ChecklistGroup = {
+  cardIdLabel: string;
+  cards: NativeChecklistCard[];
+  fighterName: string;
+  key: string;
+  ownedCount: number;
+  subset: string | null;
+  wantedCount: number;
+};
 
 const emptyState: SetsState = {
   sets: [],
@@ -138,13 +149,6 @@ function normalizeSearch(value: string) {
   return value.trim().toLowerCase();
 }
 
-function matchesCardFilter(card: NativeChecklistCard, filter: CardFilter) {
-  if (filter === 'all') return true;
-  if (filter === 'missing') return !card.status;
-  if (filter === 'wanted') return card.status === 'wanted';
-  return Boolean(card.status && OWNED_LIKE_STATUSES.has(card.status));
-}
-
 function getCardNumber(detail: string) {
   const match = detail.match(/^#([^\s-]+)/);
   return match?.[1] ?? '-';
@@ -162,9 +166,76 @@ function formatPrintRun(value: string | null) {
   return `/${trimmed}`;
 }
 
-function formatCardMeta(card: NativeChecklistCard) {
+function getChipLabel(card: NativeChecklistCard) {
   const variation = getCardVariation(card.detail);
-  return [card.subset, variation].filter(Boolean).join(' / ') || 'Base card';
+  const printRun = formatPrintRun(card.printRun);
+  const label = variation === 'Base card' ? 'Base' : variation;
+
+  if (printRun && !label.includes(printRun)) return `${label} ${printRun}`;
+  return label;
+}
+
+function getGroupIdentity(card: NativeChecklistCard) {
+  return {
+    cardIdLabel: card.cardIdLabel ?? getCardNumber(card.detail),
+    fighterName: card.fighterName || 'Unknown fighter',
+    subset: card.subset,
+  };
+}
+
+function getGroupKey(card: NativeChecklistCard) {
+  const identity = getGroupIdentity(card);
+  return [
+    card.setId || 'unknown-set',
+    identity.fighterName.toLowerCase(),
+    identity.cardIdLabel.toLowerCase(),
+    (identity.subset || 'base').toLowerCase(),
+  ].join(':');
+}
+
+function buildChecklistGroups(cards: NativeChecklistCard[]) {
+  const map = new Map<string, ChecklistGroup>();
+
+  cards.forEach((card) => {
+    const identity = getGroupIdentity(card);
+    const key = getGroupKey(card);
+    const existing = map.get(key);
+
+    if (!existing) {
+      map.set(key, {
+        cardIdLabel: identity.cardIdLabel,
+        cards: [card],
+        fighterName: identity.fighterName,
+        key,
+        ownedCount: card.status && OWNED_LIKE_STATUSES.has(card.status) ? 1 : 0,
+        subset: identity.subset,
+        wantedCount: card.status === 'wanted' ? 1 : 0,
+      });
+      return;
+    }
+
+    existing.cards.push(card);
+    if (card.status && OWNED_LIKE_STATUSES.has(card.status)) existing.ownedCount += 1;
+    if (card.status === 'wanted') existing.wantedCount += 1;
+  });
+
+  return [...map.values()].map((group) => ({
+    ...group,
+    cards: [...group.cards].sort((a, b) => (
+      getChipLabel(a).localeCompare(getChipLabel(b), undefined, { numeric: true })
+    )),
+  }));
+}
+
+function groupMatchesFilter(group: ChecklistGroup, filter: CardFilter) {
+  if (filter === 'all') return true;
+  if (filter === 'missing') return group.cards.some((card) => !card.status);
+  if (filter === 'wanted') return group.wantedCount > 0;
+  return group.ownedCount > 0;
+}
+
+function getChecklistGroupKey(group: ChecklistGroup) {
+  return group.key;
 }
 
 function getChecklistCardKey(card: NativeChecklistCard) {
@@ -189,7 +260,7 @@ function mergeUniqueCards(
 
 export function SetsScreen() {
   const { user } = useAuth();
-  const listRef = useRef<FlatList<NativeChecklistCard>>(null);
+  const listRef = useRef<FlatList<ChecklistGroup>>(null);
   const detailRequestRef = useRef(0);
   const userCardStatusesRef = useRef<Record<string, string | null>>({});
   const [data, setData] = useState<SetsState>(emptyState);
@@ -209,6 +280,7 @@ export function SetsScreen() {
   const [setSearch, setSetSearch] = useState('');
   const [cardSearch, setCardSearch] = useState('');
   const [cardFilter, setCardFilter] = useState<CardFilter>('all');
+  const [expandedGroupKeys, setExpandedGroupKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     userCardStatusesRef.current = data.userCardStatuses;
@@ -319,6 +391,7 @@ export function SetsScreen() {
       setHasMoreCards(false);
       setCardSearch('');
       setCardFilter('all');
+      setExpandedGroupKeys(new Set());
       return;
     }
 
@@ -329,6 +402,10 @@ export function SetsScreen() {
       setId: selectedSetId,
     });
   }, [loadSetCardsPage, normalizedCardSearch, selectedSetId]);
+
+  useEffect(() => {
+    setExpandedGroupKeys(new Set());
+  }, [cardFilter, normalizedCardSearch, selectedSetId]);
 
   const refresh = async () => {
     setIsRefreshing(true);
@@ -363,6 +440,7 @@ export function SetsScreen() {
     setHasMoreCards(false);
     setDetailError(null);
     setMutationError(null);
+    setExpandedGroupKeys(new Set());
   }, []);
 
   const loadMoreCards = useCallback(() => {
@@ -385,14 +463,9 @@ export function SetsScreen() {
 
   const handleSetCardStatus = useCallback(async (
     card: NativeChecklistCard,
-    requestedStatus: NativeChecklistWritableStatus,
+    nextStatus: NativeChecklistWritableStatus | null,
   ) => {
     if (!user?.id || updatingCardIds.has(card.cardId)) return;
-
-    const isActive = requestedStatus === 'owned'
-      ? Boolean(card.status && OWNED_LIKE_STATUSES.has(card.status))
-      : card.status === 'wanted';
-    const nextStatus = isActive ? null : requestedStatus;
 
     setMutationError(null);
     setUpdatingCardIds((current) => new Set(current).add(card.cardId));
@@ -448,18 +521,16 @@ export function SetsScreen() {
     ));
   }, [data.sets, setSearch]);
 
-  const filteredCards = useMemo(() => {
-    return selectedCards.filter((card) => {
-      if (!matchesCardFilter(card, cardFilter)) return false;
-      return true;
-    });
+  const groupedCards = useMemo(() => {
+    return buildChecklistGroups(selectedCards)
+      .filter((group) => groupMatchesFilter(group, cardFilter));
   }, [cardFilter, selectedCards]);
 
   const detailCountLabel = selectedTotalCount !== null
-    ? `${selectedCards.length}/${selectedTotalCount} loaded`
-    : `${selectedCards.length} loaded`;
+    ? `${selectedCards.length}/${selectedTotalCount} cards loaded / ${groupedCards.length} groups`
+    : `${selectedCards.length} cards loaded / ${groupedCards.length} groups`;
   const isFilteringCards = Boolean(normalizedCardSearch) || cardFilter !== 'all';
-  const cardListData = selectedSet ? filteredCards : [];
+  const cardListData = selectedSet ? groupedCards : [];
 
   if (isLoading) return <LoadingScreen label="Loading sets" />;
 
@@ -469,7 +540,7 @@ export function SetsScreen() {
       <FlatList
         ref={listRef}
         data={cardListData}
-        keyExtractor={(card) => getChecklistCardKey(card)}
+        keyExtractor={(group) => getChecklistGroupKey(group)}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
@@ -479,10 +550,22 @@ export function SetsScreen() {
           />
         }
         renderItem={({ item }) => (
-          <ChecklistCardRow
-            card={item}
-            isUpdating={updatingCardIds.has(item.cardId)}
+          <ChecklistGroupRow
+            group={item}
+            isExpanded={expandedGroupKeys.has(item.key)}
             onSetStatus={handleSetCardStatus}
+            onToggleExpanded={() => {
+              setExpandedGroupKeys((current) => {
+                const next = new Set(current);
+                if (next.has(item.key)) {
+                  next.delete(item.key);
+                } else {
+                  next.add(item.key);
+                }
+                return next;
+              });
+            }}
+            updatingCardIds={updatingCardIds}
           />
         )}
         ItemSeparatorComponent={() => <View style={styles.cardSeparator} />}
@@ -693,7 +776,7 @@ function SetDetailHeader({
       </View>
 
       <View style={styles.listHeader}>
-        <Text style={styles.kicker}>Cards</Text>
+        <Text style={styles.kicker}>Grouped checklist</Text>
         <Text style={styles.countText}>{detailCountLabel}</Text>
       </View>
 
@@ -705,87 +788,108 @@ function SetDetailHeader({
   );
 }
 
-function ChecklistCardRow({
+function ChecklistGroupRow({
+  group,
+  isExpanded,
+  onSetStatus,
+  onToggleExpanded,
+  updatingCardIds,
+}: {
+  group: ChecklistGroup;
+  isExpanded: boolean;
+  onSetStatus: (card: NativeChecklistCard, status: NativeChecklistWritableStatus | null) => void;
+  onToggleExpanded: () => void;
+  updatingCardIds: Set<string>;
+}) {
+  const collapsedLimit = group.cards.length > 10 ? 8 : 6;
+  const visibleCards = isExpanded ? group.cards : group.cards.slice(0, collapsedLimit);
+  const hiddenCount = Math.max(0, group.cards.length - visibleCards.length);
+
+  return (
+    <View style={styles.groupRow}>
+      <View style={styles.groupTop}>
+        <View style={styles.cardNumberWrap}>
+          <Text numberOfLines={1} style={styles.cardNumber}>
+            {group.cardIdLabel}
+          </Text>
+        </View>
+        <View style={styles.groupInfo}>
+          <View style={styles.cardTitleRow}>
+            <Text numberOfLines={2} style={styles.cardTitle}>
+              {group.fighterName}
+            </Text>
+            {group.cards.some((card) => card.isRookie) ? <Text style={styles.rookieBadge}>RC</Text> : null}
+          </View>
+          <Text numberOfLines={1} style={styles.cardDetail}>
+            {[group.subset || 'Base Set', `${group.cards.length} cards`].join(' / ')}
+          </Text>
+          <Text style={styles.groupStats}>
+            {group.ownedCount} owned / {group.wantedCount} wanted
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.chipGrid}>
+        {visibleCards.map((card) => (
+          <VariationChip
+            key={getChecklistCardKey(card)}
+            card={card}
+            isUpdating={updatingCardIds.has(card.cardId)}
+            onSetStatus={onSetStatus}
+          />
+        ))}
+        {hiddenCount > 0 ? (
+          <Pressable onPress={onToggleExpanded} style={styles.moreChip}>
+            <Text style={styles.moreChipText}>+{hiddenCount}</Text>
+          </Pressable>
+        ) : isExpanded && group.cards.length > collapsedLimit ? (
+          <Pressable onPress={onToggleExpanded} style={styles.moreChip}>
+            <Text style={styles.moreChipText}>Show less</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function VariationChip({
   card,
   isUpdating,
   onSetStatus,
 }: {
   card: NativeChecklistCard;
   isUpdating: boolean;
-  onSetStatus: (card: NativeChecklistCard, status: NativeChecklistWritableStatus) => void;
+  onSetStatus: (card: NativeChecklistCard, status: NativeChecklistWritableStatus | null) => void;
 }) {
   const isOwned = Boolean(card.status && OWNED_LIKE_STATUSES.has(card.status));
   const isWanted = card.status === 'wanted';
-  const printRun = formatPrintRun(card.printRun);
-
-  return (
-    <View style={[styles.cardRow, isUpdating ? styles.rowUpdating : null]}>
-      <View style={styles.cardNumberWrap}>
-        <Text numberOfLines={1} style={styles.cardNumber}>
-          {card.cardIdLabel ?? getCardNumber(card.detail)}
-        </Text>
-      </View>
-      <View style={styles.cardInfo}>
-        <View style={styles.cardTitleRow}>
-          <Text numberOfLines={1} style={styles.cardTitle}>
-            {card.fighterName}
-          </Text>
-          <View style={styles.cardBadgeRow}>
-            {card.isRookie ? <Text style={styles.rookieBadge}>RC</Text> : null}
-            {printRun ? <Text style={styles.printRunBadge}>{printRun}</Text> : null}
-          </View>
-        </View>
-        <Text numberOfLines={1} style={styles.cardDetail}>
-          {formatCardMeta(card)}
-        </Text>
-      </View>
-      <View style={styles.statusControls}>
-        <StatusButton
-          active={isOwned}
-          disabled={isUpdating}
-          label="Owned"
-          onPress={() => onSetStatus(card, 'owned')}
-          tone="owned"
-        />
-        <StatusButton
-          active={isWanted}
-          disabled={isUpdating}
-          label="Wanted"
-          onPress={() => onSetStatus(card, 'wanted')}
-          tone="wanted"
-        />
-      </View>
-    </View>
-  );
-}
-
-function StatusButton({
-  active,
-  disabled,
-  label,
-  onPress,
-  tone,
-}: {
-  active: boolean;
-  disabled: boolean;
-  label: string;
-  onPress: () => void;
-  tone: 'owned' | 'wanted';
-}) {
-  const activeStyle = tone === 'wanted' ? styles.statusButtonWantedActive : styles.statusButtonOwnedActive;
+  const activeStyle = isOwned
+    ? styles.variationChipOwned
+    : isWanted
+      ? styles.variationChipWanted
+      : null;
+  const activeTextStyle = isOwned
+    ? styles.variationChipTextOwned
+    : isWanted
+      ? styles.variationChipTextWanted
+      : null;
 
   return (
     <Pressable
-      disabled={disabled}
-      onPress={onPress}
+      disabled={isUpdating}
+      onPress={() => {
+        const nextStatus = getNextChecklistStatus(card.status);
+        onSetStatus(card, nextStatus);
+      }}
       style={({ pressed }) => [
-        styles.statusButton,
-        active ? activeStyle : null,
-        pressed && !disabled ? styles.statusButtonPressed : null,
+        styles.variationChip,
+        activeStyle,
+        isUpdating ? styles.rowUpdating : null,
+        pressed && !isUpdating ? styles.statusButtonPressed : null,
       ]}
     >
-      <Text style={[styles.statusButtonText, active ? styles.statusButtonTextActive : null]}>
-        {label}
+      <Text numberOfLines={1} style={[styles.variationChipText, activeTextStyle]}>
+        {getChipLabel(card)}
       </Text>
     </Pressable>
   );
@@ -986,6 +1090,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 7,
   },
+  chipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    marginTop: 12,
+  },
   clearSearchButton: {
     paddingHorizontal: 4,
     paddingVertical: 5,
@@ -1062,6 +1172,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 7,
     marginTop: 10,
+  },
+  groupInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  groupRow: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderTopColor: colors.ink,
+    borderTopWidth: 3,
+    borderWidth: 1,
+    padding: 12,
+  },
+  groupStats: {
+    color: colors.textSoft,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.2,
+    marginTop: 5,
+    textTransform: 'uppercase',
+  },
+  groupTop: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 11,
   },
   printRunBadge: {
     borderColor: colors.red,
@@ -1140,6 +1276,23 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 20,
     fontWeight: '900',
+  },
+  moreChip: {
+    alignItems: 'center',
+    backgroundColor: '#fbfaf7',
+    borderColor: colors.ink,
+    borderRadius: 4,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 32,
+    paddingHorizontal: 10,
+  },
+  moreChipText: {
+    color: colors.ink,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
   rowUpdating: {
     opacity: 0.58,
@@ -1368,5 +1521,38 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.7,
     textTransform: 'uppercase',
+  },
+  variationChip: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 4,
+    borderWidth: 1,
+    justifyContent: 'center',
+    maxWidth: '100%',
+    minHeight: 32,
+    paddingHorizontal: 10,
+  },
+  variationChipOwned: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+  },
+  variationChipText: {
+    color: colors.ink,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
+  },
+  variationChipTextOwned: {
+    color: colors.textInverse,
+  },
+  variationChipTextWanted: {
+    color: colors.red,
+  },
+  variationChipWanted: {
+    backgroundColor: '#fff7f7',
+    borderColor: colors.red,
+    borderWidth: 2,
   },
 });
