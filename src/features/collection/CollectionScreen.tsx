@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Pressable,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -11,9 +12,6 @@ import {
 } from 'react-native';
 
 import {
-  ScreenHeader,
-  SectionPanel,
-  StatTile,
   WebFallbackButton,
   sharedScreenStyles,
 } from '@/src/components/ui/NativePrimitives';
@@ -55,6 +53,15 @@ function getStatusBadgeStyle(status: string | null) {
   if (status === 'for_sale' || status === 'for_trade') return styles.statusMarket;
   if (status === 'not_for_sale' || status === 'not_for_trade') return styles.statusLocked;
   return styles.statusMissing;
+}
+
+function getCardDetailParts(detail: string) {
+  const parts = detail.split(' - ').map((part) => part.trim()).filter(Boolean);
+  const setName = parts[0] ?? 'Set details pending';
+  const cardNumber = parts.find((part) => part.startsWith('#')) ?? null;
+  const parallel = parts.find((part) => !part.startsWith('#') && part !== setName) ?? null;
+
+  return { cardNumber, parallel, setName };
 }
 
 export function CollectionScreen() {
@@ -111,6 +118,10 @@ export function CollectionScreen() {
     () => collection.cards.filter((card) => card.status === 'wanted').slice(0, 5),
     [collection.cards],
   );
+  const uniqueFighterCount = useMemo(
+    () => new Set(collection.cards.map((card) => card.fighterName).filter(Boolean)).size,
+    [collection.cards],
+  );
   const hasAnyCards = collection.cards.length > 0;
 
   if (isLoading) return <LoadingScreen label="Loading collection" />;
@@ -128,11 +139,15 @@ export function CollectionScreen() {
           />
         }
       >
-        <ScreenHeader
-          action={<WebFallbackButton onPress={openWebFallback} />}
-          subtitle="Your saved cards, wanted list, and collector progress."
-          title="My Collection"
-        />
+        <View style={styles.header}>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>My Collection</Text>
+            <Text style={styles.subtitle}>Inventory, chase list, and set progress.</Text>
+          </View>
+          <Pressable onPress={openWebFallback} style={styles.webButton}>
+            <Text style={styles.webButtonText}>Web</Text>
+          </Pressable>
+        </View>
 
         {error ? (
           <ScreenState
@@ -143,23 +158,21 @@ export function CollectionScreen() {
           />
         ) : null}
 
-        <SectionPanel accent style={styles.hero}>
-          <Text style={styles.kicker}>Collector progress</Text>
-          <Text style={styles.heroTitle}>
-            {hasAnyCards ? 'Your collection is live' : 'Start your collection'}
-          </Text>
-          <Text style={styles.heroText}>
-            Track the cards you own, the ones you are chasing, and the sets you are building.
-          </Text>
-        </SectionPanel>
-
-        <View style={styles.grid}>
-          <StatTile label="Owned" value={String(collection.summary.owned)} />
-          <StatTile label="In Collection" value={String(collection.summary.ownedLike)} />
-          <StatTile label="Wanted" value={String(collection.summary.wanted)} />
+        <View style={styles.summaryPanel}>
+          <View>
+            <Text style={styles.kicker}>Collector inventory</Text>
+            <Text style={styles.summaryTitle}>
+              {hasAnyCards ? 'Your cards, organized.' : 'Start building your binder.'}
+            </Text>
+          </View>
+          <View style={styles.statsRow}>
+            <InventoryStat label="Owned" value={String(collection.summary.owned)} />
+            <InventoryStat label="Wanted" value={String(collection.summary.wanted)} />
+            <InventoryStat label="Fighters" value={String(uniqueFighterCount)} />
+          </View>
         </View>
 
-        <SectionPanel style={styles.panel}>
+        <View style={styles.panel}>
           <View style={styles.panelHeader}>
             <View>
               <Text style={styles.kicker}>Collection Highlights</Text>
@@ -175,11 +188,11 @@ export function CollectionScreen() {
               ))}
             </View>
           ) : (
-            <Text style={styles.panelText}>Cards you add to your collection will appear here.</Text>
+            <InventoryEmptyText message="Cards marked Owned from set checklists will appear here." />
           )}
-        </SectionPanel>
+        </View>
 
-        <SectionPanel style={styles.panel}>
+        <View style={styles.panel}>
           <View style={styles.panelHeader}>
             <View>
               <Text style={styles.kicker}>Wanted List</Text>
@@ -195,11 +208,11 @@ export function CollectionScreen() {
               ))}
             </View>
           ) : (
-            <Text style={styles.panelText}>Your wanted list is clear. Mark cards as wanted when you are ready to chase them.</Text>
+            <InventoryEmptyText message="Mark cards as Wanted from checklists to build your chase list." />
           )}
-        </SectionPanel>
+        </View>
 
-        <SectionPanel style={styles.utilityPanel} variant="muted">
+        <View style={styles.utilityPanel}>
           <Text style={styles.kicker}>Collection Tools</Text>
           <Text style={styles.sectionTitle}>Need full checklist controls?</Text>
           <Text style={styles.panelText}>
@@ -211,22 +224,31 @@ export function CollectionScreen() {
             style={styles.secondaryButton}
             textStyle={styles.secondaryButtonText}
           />
-        </SectionPanel>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 function CollectionCardRow({ card }: { card: NativeCollectionCard }) {
+  const { cardNumber, parallel, setName } = getCardDetailParts(card.detail);
+  const isWanted = card.status === 'wanted';
+
   return (
-    <View style={styles.cardRow}>
+    <View style={[styles.cardRow, isWanted ? styles.cardRowWanted : null]}>
+      <View style={[styles.cardNumberChip, isWanted ? styles.cardNumberChipWanted : null]}>
+        <Text numberOfLines={1} style={[styles.cardNumberText, isWanted ? styles.cardNumberTextWanted : null]}>
+          {cardNumber ?? 'FCS'}
+        </Text>
+      </View>
       <View style={styles.cardInfo}>
         <Text numberOfLines={1} style={styles.cardTitle}>
           {card.fighterName}
         </Text>
         <Text numberOfLines={1} style={styles.cardDetail}>
-          {card.detail}
+          {setName}
         </Text>
+        {parallel ? <Text numberOfLines={1} style={styles.cardParallel}>{parallel}</Text> : null}
       </View>
       <Text style={[styles.statusBadge, getStatusBadgeStyle(card.status)]}>
         {formatStatus(card.status)}
@@ -235,31 +257,85 @@ function CollectionCardRow({ card }: { card: NativeCollectionCard }) {
   );
 }
 
+function InventoryStat({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.inventoryStat}>
+      <Text style={styles.inventoryStatValue}>{value}</Text>
+      <Text style={styles.inventoryStatLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function InventoryEmptyText({ message }: { message: string }) {
+  return (
+    <View style={styles.emptyBox}>
+      <Text style={styles.emptyText}>{message}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   cardDetail: {
-    color: colors.muted,
-    fontSize: 12,
+    color: colors.textSoft,
+    fontSize: 11,
     fontWeight: '700',
-    marginTop: 5,
+    lineHeight: 15,
+    marginTop: 4,
   },
   cardInfo: {
     flex: 1,
     minWidth: 0,
   },
   cardList: {
-    gap: 8,
-    marginTop: 14,
+    gap: 9,
+    marginTop: 13,
+  },
+  cardNumberChip: {
+    alignItems: 'center',
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+    borderRadius: 4,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 38,
+    paddingHorizontal: 5,
+    width: 52,
+  },
+  cardNumberChipWanted: {
+    backgroundColor: colors.surface,
+    borderColor: colors.red,
+  },
+  cardNumberText: {
+    color: colors.textInverse,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.25,
+    textAlign: 'center',
+  },
+  cardNumberTextWanted: {
+    color: colors.red,
+  },
+  cardParallel: {
+    color: colors.red,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    marginTop: 3,
   },
   cardRow: {
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
+    borderRadius: 6,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 12,
-    minHeight: 62,
-    paddingHorizontal: 13,
-    paddingVertical: 12,
+    gap: 10,
+    minHeight: 72,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  cardRowWanted: {
+    borderColor: 'rgba(225, 6, 0, 0.35)',
   },
   cardTitle: {
     color: colors.ink,
@@ -269,7 +345,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   container: {
-    backgroundColor: colors.background,
+    backgroundColor: '#fbfaf7',
     flex: 1,
   },
   countBadge: {
@@ -283,37 +359,63 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     textTransform: 'uppercase',
   },
-  grid: {
-    flexDirection: 'row',
-    gap: 8,
+  emptyBox: {
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderWidth: 1,
+    marginTop: 14,
+    padding: 14,
   },
-  hero: {
-    padding: 18,
-  },
-  heroText: {
+  emptyText: {
     color: colors.textSoft,
-    fontSize: 14,
-    lineHeight: 21,
-    marginTop: 12,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
   },
-  heroTitle: {
-    color: colors.ink,
-    fontSize: 29,
+  header: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  headerText: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 14,
+  },
+  inventoryStat: {
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderWidth: 1,
+    flex: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  inventoryStatLabel: {
+    color: colors.textSoft,
+    fontSize: 9,
     fontWeight: '900',
-    letterSpacing: -0.4,
-    lineHeight: 32,
-    marginTop: 8,
+    letterSpacing: 0.8,
+    marginTop: 2,
     textTransform: 'uppercase',
   },
+  inventoryStatValue: {
+    color: colors.ink,
+    fontSize: 22,
+    fontWeight: '900',
+  },
   kicker: {
-    color: colors.accent,
+    color: colors.red,
     fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 1.8,
+    letterSpacing: 1.3,
     textTransform: 'uppercase',
   },
   panel: {
-    padding: 16,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderWidth: 1,
+    padding: 14,
   },
   panelHeader: {
     alignItems: 'flex-start',
@@ -329,6 +431,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     ...sharedScreenStyles.scrollContent,
+    backgroundColor: '#fbfaf7',
   },
   secondaryButton: {
     alignItems: 'center',
@@ -346,7 +449,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: colors.ink,
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: '900',
     letterSpacing: -0.1,
     lineHeight: 23,
@@ -361,7 +464,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.8,
-    paddingHorizontal: 8,
+    borderRadius: 4,
+    paddingHorizontal: 7,
     paddingVertical: 5,
     textAlign: 'right',
     textTransform: 'uppercase',
@@ -388,6 +492,60 @@ const styles = StyleSheet.create({
     color: colors.red,
   },
   utilityPanel: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderWidth: 1,
     padding: 14,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+  },
+  subtitle: {
+    color: colors.textSoft,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+    marginTop: 6,
+  },
+  summaryPanel: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderTopColor: colors.red,
+    borderTopWidth: 3,
+    borderWidth: 1,
+    padding: 14,
+  },
+  summaryTitle: {
+    color: colors.ink,
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    lineHeight: 25,
+    marginTop: 6,
+    textTransform: 'uppercase',
+  },
+  title: {
+    color: colors.ink,
+    fontSize: 29,
+    fontWeight: '900',
+    letterSpacing: -0.4,
+  },
+  webButton: {
+    borderColor: colors.border,
+    borderRadius: 5,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  webButtonText: {
+    color: colors.textSoft,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
   },
 });
