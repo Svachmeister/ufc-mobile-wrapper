@@ -527,8 +527,8 @@ export function SetsScreen() {
   }, [cardFilter, selectedCards]);
 
   const detailCountLabel = selectedTotalCount !== null
-    ? `${selectedCards.length}/${selectedTotalCount} cards loaded / ${groupedCards.length} groups`
-    : `${selectedCards.length} cards loaded / ${groupedCards.length} groups`;
+    ? `${selectedCards.length}/${selectedTotalCount} loaded · ${groupedCards.length} groups`
+    : `${selectedCards.length} loaded · ${groupedCards.length} groups`;
   const isFilteringCards = Boolean(normalizedCardSearch) || cardFilter !== 'all';
   const cardListData = selectedSet ? groupedCards : [];
 
@@ -776,7 +776,7 @@ function SetDetailHeader({
       </View>
 
       <View style={styles.listHeader}>
-        <Text style={styles.kicker}>Grouped checklist</Text>
+        <Text style={styles.kicker}>Checklist groups</Text>
         <Text style={styles.countText}>{detailCountLabel}</Text>
       </View>
 
@@ -821,10 +821,12 @@ function ChecklistGroupRow({
             {group.cards.some((card) => card.isRookie) ? <Text style={styles.rookieBadge}>RC</Text> : null}
           </View>
           <Text numberOfLines={1} style={styles.cardDetail}>
-            {[group.subset || 'Base Set', `${group.cards.length} cards`].join(' / ')}
+            {[`#${group.cardIdLabel}`, group.subset || 'Base Set', `${group.cards.length} cards`].join(' · ')}
           </Text>
           <Text style={styles.groupStats}>
-            {group.ownedCount} owned / {group.wantedCount} wanted
+            {group.ownedCount || group.wantedCount
+              ? `${group.ownedCount} owned · ${group.wantedCount} wanted`
+              : 'No cards marked'}
           </Text>
         </View>
       </View>
@@ -889,7 +891,7 @@ function VariationChip({
       ]}
     >
       <Text numberOfLines={1} style={[styles.variationChipText, activeTextStyle]}>
-        {getChipLabel(card)}
+        {isOwned ? `✓ ${getChipLabel(card)}` : isWanted ? `Want ${getChipLabel(card)}` : getChipLabel(card)}
       </Text>
     </Pressable>
   );
@@ -1038,22 +1040,22 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   cardNumber: {
-    color: colors.textInverse,
-    fontSize: 11,
+    color: colors.ink,
+    fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.3,
     textAlign: 'center',
   },
   cardNumberWrap: {
     alignItems: 'center',
-    backgroundColor: colors.ink,
-    borderColor: colors.ink,
+    backgroundColor: '#fbfaf7',
+    borderColor: colors.borderStrong,
     borderRadius: 4,
     borderWidth: 1,
     justifyContent: 'center',
-    minHeight: 38,
+    minHeight: 30,
     paddingHorizontal: 4,
-    width: 50,
+    width: 44,
   },
   cardRow: {
     alignItems: 'stretch',
@@ -1072,10 +1074,10 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     color: colors.ink,
-    fontSize: 14,
+    fontSize: 15,
     flex: 1,
     fontWeight: '900',
-    lineHeight: 18,
+    lineHeight: 19,
     minWidth: 0,
     textTransform: 'uppercase',
   },
@@ -1181,8 +1183,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 6,
-    borderTopColor: colors.ink,
-    borderTopWidth: 3,
+    borderLeftColor: colors.red,
+    borderLeftWidth: 2,
     borderWidth: 1,
     padding: 12,
   },
@@ -1280,7 +1282,7 @@ const styles = StyleSheet.create({
   moreChip: {
     alignItems: 'center',
     backgroundColor: '#fbfaf7',
-    borderColor: colors.ink,
+    borderColor: colors.border,
     borderRadius: 4,
     borderWidth: 1,
     justifyContent: 'center',
@@ -1288,7 +1290,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   moreChipText: {
-    color: colors.ink,
+    color: colors.textSoft,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.4,
@@ -1298,9 +1300,11 @@ const styles = StyleSheet.create({
     opacity: 0.58,
   },
   rookieBadge: {
-    backgroundColor: colors.red,
+    backgroundColor: '#fff7f7',
+    borderColor: colors.red,
+    borderWidth: 1,
     borderRadius: 3,
-    color: colors.textInverse,
+    color: colors.red,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.4,
@@ -1524,14 +1528,14 @@ const styles = StyleSheet.create({
   },
   variationChip: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: '#fbfaf7',
     borderColor: colors.border,
     borderRadius: 4,
     borderWidth: 1,
     justifyContent: 'center',
     maxWidth: '100%',
-    minHeight: 32,
-    paddingHorizontal: 10,
+    minHeight: 31,
+    paddingHorizontal: 9,
   },
   variationChipOwned: {
     backgroundColor: colors.ink,
@@ -1551,8 +1555,8 @@ const styles = StyleSheet.create({
     color: colors.red,
   },
   variationChipWanted: {
-    backgroundColor: '#fff7f7',
+    backgroundColor: colors.surface,
     borderColor: colors.red,
-    borderWidth: 2,
+    borderWidth: 1,
   },
 });
