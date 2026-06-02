@@ -25,18 +25,23 @@ export default function CollectionHubScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Collection</Text>
-        <Text style={styles.subtitle}>Your cards and set checklists live here.</Text>
+        <View style={styles.header}>
+          <Text style={styles.kicker}>Collector hub</Text>
+          <Text style={styles.title}>Collection</Text>
+          <Text style={styles.subtitle}>Manage your binder, chase list, and set checklists.</Text>
+        </View>
 
         <View style={styles.list}>
           <HubRow
+            eyebrow="Inventory"
             label="My Collection"
-            meta="Owned cards, wanted list, and collector progress"
+            meta="Owned cards, wanted cards, and collector progress"
             onPress={openMyCollection}
           />
           <HubRow
+            eyebrow="Checklists"
             label="Browse Card Sets"
-            meta="Set checklists and card browsing"
+            meta="Set checklists, card search, and chase targets"
             onPress={openCardSets}
           />
         </View>
@@ -46,10 +51,12 @@ export default function CollectionHubScreen() {
 }
 
 function HubRow({
+  eyebrow,
   label,
   meta,
   onPress,
 }: {
+  eyebrow: string;
   label: string;
   meta: string;
   onPress: () => void;
@@ -62,7 +69,11 @@ function HubRow({
         pressed ? styles.rowPressed : null,
       ]}
     >
+      <View style={styles.rowRail}>
+        <Text style={styles.rowRailText}>FCS</Text>
+      </View>
       <View style={styles.rowText}>
+        <Text style={styles.rowEyebrow}>{eyebrow}</Text>
         <Text style={styles.rowLabel}>{label}</Text>
         <Text style={styles.rowMeta}>{meta}</Text>
       </View>
@@ -73,37 +84,69 @@ function HubRow({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fbfaf7',
     flex: 1,
   },
+  header: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderTopColor: colors.red,
+    borderTopWidth: 3,
+    borderWidth: 1,
+    padding: 16,
+  },
+  kicker: {
+    color: colors.red,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
   list: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    marginTop: 22,
+    gap: 10,
+    marginTop: 16,
   },
   row: {
     alignItems: 'center',
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderWidth: 1,
     flexDirection: 'row',
-    gap: 14,
-    minHeight: 72,
-    paddingVertical: 14,
+    gap: 12,
+    minHeight: 86,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
   rowAction: {
-    color: colors.red,
+    borderColor: colors.border,
+    borderRadius: 4,
+    borderWidth: 1,
+    color: colors.ink,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.9,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    textTransform: 'uppercase',
+  },
+  rowEyebrow: {
+    color: colors.red,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.9,
+    marginBottom: 4,
     textTransform: 'uppercase',
   },
   rowLabel: {
     color: colors.ink,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '900',
+    letterSpacing: -0.1,
   },
   rowMeta: {
-    color: colors.gray500,
+    color: colors.textSoft,
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 18,
@@ -112,25 +155,41 @@ const styles = StyleSheet.create({
   rowPressed: {
     opacity: 0.62,
   },
+  rowRail: {
+    alignItems: 'center',
+    backgroundColor: colors.ink,
+    borderRadius: 4,
+    height: 50,
+    justifyContent: 'center',
+    width: 42,
+  },
+  rowRailText: {
+    color: colors.textInverse,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.9,
+  },
   rowText: {
     flex: 1,
     minWidth: 0,
   },
   scrollContent: {
     ...sharedScreenStyles.scrollContent,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fbfaf7',
   },
   subtitle: {
-    color: colors.gray500,
+    color: colors.textSoft,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,
-    marginTop: 6,
+    marginTop: 8,
   },
   title: {
     color: colors.ink,
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '900',
     letterSpacing: -0.5,
+    marginTop: 4,
+    textTransform: 'uppercase',
   },
 });
