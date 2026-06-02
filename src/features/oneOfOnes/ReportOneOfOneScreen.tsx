@@ -591,13 +591,15 @@ export function ReportOneOfOneScreen() {
             <View style={styles.headerCopy}>
               <Text style={styles.kicker}>1-of-1 Tracker</Text>
               <Text style={styles.title}>Report 1-of-1</Text>
-              <Text style={styles.subtitle}>Submit a sighting for Society moderation.</Text>
+              <Text style={styles.subtitle}>
+                Log a chase-card sighting with source details for verification.
+              </Text>
             </View>
           </View>
 
           {success ? (
             <View style={styles.successBox}>
-              <Text style={styles.successTitle}>Report submitted for review.</Text>
+              <Text style={styles.successTitle}>Sighting submitted for review.</Text>
               <Text style={styles.successText}>
                 Moderators will review the sighting before it appears in the public tracker.
               </Text>
@@ -611,7 +613,10 @@ export function ReportOneOfOneScreen() {
           ) : null}
 
           <View style={styles.panel}>
-            <Text style={styles.sectionTitle}>Card details</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionKicker}>Step 01</Text>
+              <Text style={styles.sectionTitle}>Card details</Text>
+            </View>
             <Field
               autoCapitalize="words"
               label="Fighter name"
@@ -687,7 +692,10 @@ export function ReportOneOfOneScreen() {
           </View>
 
           <View style={styles.panel}>
-            <Text style={styles.sectionTitle}>Report Source</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionKicker}>Step 02</Text>
+              <Text style={styles.sectionTitle}>Report Source</Text>
+            </View>
             <Text style={styles.helperText}>Where did you see this 1-of-1?</Text>
             <OptionGrid
               options={REPORT_SOURCE_OPTIONS}
@@ -697,7 +705,10 @@ export function ReportOneOfOneScreen() {
           </View>
 
           <View style={styles.panel}>
-            <Text style={styles.sectionTitle}>Source notes</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionKicker}>Step 03</Text>
+              <Text style={styles.sectionTitle}>Source notes</Text>
+            </View>
             <Field
               autoCapitalize="none"
               keyboardType="url"
@@ -717,7 +728,10 @@ export function ReportOneOfOneScreen() {
           </View>
 
           <View style={styles.panel}>
-            <Text style={styles.sectionTitle}>Evidence Image</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionKicker}>Step 04</Text>
+              <Text style={styles.sectionTitle}>Evidence Image</Text>
+            </View>
             <Text style={styles.helperText}>
               Optional screenshot/photo that helps moderators verify the sighting.
             </Text>
@@ -767,7 +781,7 @@ export function ReportOneOfOneScreen() {
             ]}
           >
             <Text style={styles.submitText}>
-              {isSubmitting ? 'Submitting...' : 'Submit Report'}
+              {isSubmitting ? 'Submitting...' : 'Submit Sighting'}
             </Text>
           </Pressable>
         </ScrollView>
@@ -967,8 +981,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fee2e2',
     borderColor: colors.danger,
     borderTopColor: colors.danger,
-    borderTopWidth: 3,
+    borderTopWidth: 4,
     borderWidth: 1,
+    borderRadius: radius.sm,
     padding: 14,
   },
   errorText: {
@@ -978,7 +993,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   field: {
-    gap: 7,
+    gap: 8,
   },
   fieldHint: {
     color: colors.gray700,
@@ -1053,16 +1068,16 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   evidencePreview: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: '#f1f1ec',
     borderColor: colors.borderStrong,
     borderRadius: radius.sm,
     borderWidth: 1,
-    height: 58,
-    width: 58,
+    height: 62,
+    width: 60,
   },
   evidencePreviewRow: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: '#fbfaf7',
     borderColor: colors.border,
     borderRadius: radius.sm,
     borderWidth: 1,
@@ -1089,14 +1104,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   input: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: '#fbfaf7',
     borderColor: colors.border,
     borderRadius: radius.sm,
     borderWidth: 1,
     color: colors.ink,
     fontSize: 15,
     fontWeight: '700',
-    minHeight: 50,
+    minHeight: 52,
     paddingHorizontal: 12,
   },
   keyboardWrap: {
@@ -1118,18 +1133,19 @@ const styles = StyleSheet.create({
   },
   optionChip: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: '#fbfaf7',
     borderColor: colors.border,
     borderRadius: radius.sm,
     borderWidth: 1,
+    flexBasis: '48%',
     flexGrow: 1,
     justifyContent: 'center',
-    minHeight: 42,
+    minHeight: 44,
     paddingHorizontal: 10,
   },
   optionChipActive: {
-    backgroundColor: colors.ink,
-    borderColor: colors.ink,
+    backgroundColor: colors.red,
+    borderColor: colors.red,
   },
   optionGrid: {
     flexDirection: 'row',
@@ -1137,10 +1153,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   optionText: {
-    color: colors.gray700,
+    color: colors.ink,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.6,
+    textAlign: 'center',
     textTransform: 'uppercase',
   },
   optionTextActive: {
@@ -1149,9 +1166,9 @@ const styles = StyleSheet.create({
   panel: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.md,
-    borderTopColor: colors.red,
-    borderTopWidth: 3,
+    borderRadius: radius.sm,
+    borderTopColor: colors.ink,
+    borderTopWidth: 4,
     borderWidth: 1,
     gap: 14,
     padding: 16,
@@ -1198,12 +1215,25 @@ const styles = StyleSheet.create({
     ...sharedScreenStyles.scrollContent,
     gap: 13,
   },
+  sectionHeader: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    gap: 3,
+    paddingBottom: 10,
+  },
+  sectionKicker: {
+    color: colors.red,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
   sectionTitle: {
     color: colors.ink,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '900',
-    letterSpacing: 0.2,
-    lineHeight: 21,
+    letterSpacing: -0.1,
+    lineHeight: 22,
     textTransform: 'uppercase',
   },
   submitButton: {
@@ -1213,7 +1243,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     borderWidth: 1,
     justifyContent: 'center',
-    minHeight: 52,
+    minHeight: 54,
   },
   submitText: {
     color: colors.textInverse,
@@ -1230,11 +1260,12 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   successBox: {
-    backgroundColor: '#dcfce7',
+    backgroundColor: '#f1fff4',
     borderColor: colors.success,
     borderTopColor: colors.success,
-    borderTopWidth: 3,
+    borderTopWidth: 4,
     borderWidth: 1,
+    borderRadius: radius.sm,
     padding: 14,
   },
   successText: {
