@@ -13,10 +13,7 @@ import {
   View,
 } from 'react-native';
 
-import {
-  WebFallbackButton,
-  sharedScreenStyles,
-} from '@/src/components/ui/NativePrimitives';
+import { sharedScreenStyles } from '@/src/components/ui/NativePrimitives';
 import { LoadingScreen, ScreenState } from '@/src/components/ui/ScreenState';
 import { useAuth } from '@/src/features/auth/AuthProvider';
 import {
@@ -77,6 +74,14 @@ function formatSetMeta(set: NativeChecklistSet) {
   return [set.year, set.brand, formatReleaseDate(set.releaseDate)]
     .filter(Boolean)
     .join(' / ');
+}
+
+function formatSetCounts(set: NativeChecklistSet) {
+  const total = set.cardCount === null || set.cardCount === undefined
+    ? 'Cards TBA'
+    : `${set.cardCount} cards`;
+
+  return `${total} / ${set.ownedCount} owned / ${set.wantedCount} wanted`;
 }
 
 function getStatusCounts(statuses: Iterable<string | null>) {
@@ -488,11 +493,11 @@ export function SetsScreen() {
                 <Text style={styles.screenTitle}>{selectedSet ? 'Checklist' : 'Card Sets'}</Text>
                 <Text style={styles.screenSubtitle}>
                   {selectedSet
-                    ? 'Track owned cards and wanted targets.'
-                    : 'Browse sets and open a fast mobile checklist.'}
+                    ? 'Mark owned cards and chase list targets.'
+                    : 'Track UFC sets, cards and chase targets.'}
                 </Text>
               </View>
-              <WebFallbackButton onPress={openWebFallback} />
+              <UtilityWebButton onPress={openWebFallback} />
             </View>
 
             {error ? (
@@ -649,10 +654,12 @@ function SetDetailHeader({
       </Pressable>
 
       <View style={styles.selectedHeader}>
-        <SetCover imageUrl={selectedSet.imageUrl} size="large" />
-        <View style={styles.selectedInfo}>
-          <Text numberOfLines={2} style={styles.selectedTitle}>{selectedSet.name}</Text>
-          <Text numberOfLines={2} style={styles.selectedMeta}>{formatSetMeta(selectedSet)}</Text>
+        <View style={styles.selectedHeaderMain}>
+          <SetCover imageUrl={selectedSet.imageUrl} size="large" />
+          <View style={styles.selectedInfo}>
+            <Text numberOfLines={3} style={styles.selectedTitle}>{selectedSet.name}</Text>
+            <Text numberOfLines={2} style={styles.selectedMeta}>{formatSetMeta(selectedSet)}</Text>
+          </View>
         </View>
       </View>
 
@@ -724,11 +731,11 @@ function ChecklistCardRow({
             {card.fighterName}
           </Text>
           {card.isRookie ? <Text style={styles.rookieBadge}>RC</Text> : null}
+          {printRun ? <Text style={styles.printRunBadge}>{printRun}</Text> : null}
         </View>
         <Text numberOfLines={1} style={styles.cardDetail}>
           {formatCardMeta(card)}
         </Text>
-        {printRun ? <Text style={styles.printRunText}>{printRun}</Text> : null}
       </View>
       <View style={styles.statusControls}>
         <StatusButton
@@ -846,10 +853,18 @@ function SetRow({
           {formatSetMeta(set)}
         </Text>
         <Text style={styles.setCounts}>
-          {set.cardCount === null ? '-' : set.cardCount} cards / {set.ownedCount} owned / {set.wantedCount} wanted
+          {formatSetCounts(set)}
         </Text>
       </View>
       <Text style={styles.setAction}>Open</Text>
+    </Pressable>
+  );
+}
+
+function UtilityWebButton({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={styles.utilityWebButton}>
+      <Text style={styles.utilityWebButtonText}>Web</Text>
     </Pressable>
   );
 }
@@ -887,7 +902,7 @@ function SetCover({
 const styles = StyleSheet.create({
   backButton: {
     alignSelf: 'flex-start',
-    borderColor: colors.ink,
+    borderColor: colors.border,
     borderRadius: 5,
     borderWidth: 1,
     marginBottom: 12,
@@ -895,7 +910,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   backButtonText: {
-    color: colors.ink,
+    color: colors.textSoft,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.8,
@@ -912,19 +927,22 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   cardNumber: {
-    color: colors.ink,
-    fontSize: 12,
+    color: colors.textInverse,
+    fontSize: 11,
     fontWeight: '900',
+    letterSpacing: 0.3,
     textAlign: 'center',
   },
   cardNumberWrap: {
     alignItems: 'center',
-    borderColor: colors.border,
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
     borderRadius: 4,
     borderWidth: 1,
     justifyContent: 'center',
     minHeight: 34,
-    width: 44,
+    paddingHorizontal: 4,
+    width: 48,
   },
   cardRow: {
     alignItems: 'center',
@@ -933,9 +951,9 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 9,
-    minHeight: 66,
-    paddingHorizontal: 9,
+    gap: 10,
+    minHeight: 64,
+    paddingHorizontal: 10,
     paddingVertical: 8,
   },
   cardSeparator: {
@@ -952,7 +970,7 @@ const styles = StyleSheet.create({
   cardTitleRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 6,
+    gap: 5,
   },
   clearSearchButton: {
     paddingHorizontal: 4,
@@ -1031,13 +1049,17 @@ const styles = StyleSheet.create({
     gap: 7,
     marginTop: 10,
   },
-  printRunText: {
-    alignSelf: 'flex-start',
+  printRunBadge: {
+    borderColor: colors.red,
+    borderRadius: 3,
+    borderWidth: 1,
     color: colors.red,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.5,
-    marginTop: 3,
+    overflow: 'hidden',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
   },
   footer: {
     paddingBottom: 18,
@@ -1089,7 +1111,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flex: 1,
     paddingHorizontal: 10,
-    paddingVertical: 11,
+    paddingVertical: 10,
   },
   miniStatLabel: {
     color: colors.textSoft,
@@ -1152,19 +1174,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: 8,
-    marginTop: 14,
+    marginTop: 13,
     paddingHorizontal: 12,
   },
   section: {
     marginTop: 16,
   },
   selectedHeader: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderTopColor: colors.red,
+    borderTopWidth: 3,
+    borderWidth: 1,
+    padding: 12,
+  },
+  selectedHeaderMain: {
     alignItems: 'center',
-    borderLeftColor: colors.red,
-    borderLeftWidth: 4,
     flexDirection: 'row',
     gap: 12,
-    paddingLeft: 11,
   },
   selectedInfo: {
     flex: 1,
@@ -1172,23 +1200,29 @@ const styles = StyleSheet.create({
   },
   selectedMeta: {
     color: colors.textSoft,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
-    marginTop: 6,
+    lineHeight: 16,
+    marginTop: 5,
   },
   selectedTitle: {
     color: colors.ink,
-    fontSize: 21,
+    fontSize: 19,
     fontWeight: '900',
     letterSpacing: -0.1,
-    lineHeight: 25,
+    lineHeight: 22,
     textTransform: 'uppercase',
   },
   setAction: {
-    color: colors.red,
+    borderColor: colors.border,
+    borderRadius: 4,
+    borderWidth: 1,
+    color: colors.ink,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.9,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
     textTransform: 'uppercase',
   },
   setCover: {
@@ -1205,8 +1239,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   setCoverLarge: {
-    height: 64,
-    width: 64,
+    height: 66,
+    width: 66,
   },
   setCoverPlaceholder: {
     backgroundColor: colors.ink,
@@ -1219,8 +1253,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   setCoverSmall: {
-    height: 52,
-    width: 52,
+    height: 54,
+    width: 54,
   },
   setCounts: {
     color: colors.textSoft,
@@ -1248,9 +1282,9 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 12,
-    minHeight: 68,
-    paddingHorizontal: 12,
+    gap: 11,
+    minHeight: 74,
+    paddingHorizontal: 10,
     paddingVertical: 10,
   },
   setTitle: {
@@ -1266,9 +1300,9 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 1,
     justifyContent: 'center',
-    minHeight: 28,
-    paddingHorizontal: 7,
-    width: 58,
+    minHeight: 27,
+    paddingHorizontal: 6,
+    width: 56,
   },
   statusButtonOwnedActive: {
     backgroundColor: colors.ink,
@@ -1289,7 +1323,7 @@ const styles = StyleSheet.create({
     borderColor: colors.red,
   },
   statusControls: {
-    gap: 5,
+    gap: 4,
   },
   summaryStrip: {
     flexDirection: 'row',
@@ -1299,5 +1333,19 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  utilityWebButton: {
+    borderColor: colors.border,
+    borderRadius: 5,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  utilityWebButtonText: {
+    color: colors.textSoft,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
   },
 });
