@@ -11,12 +11,6 @@ import {
   View,
 } from 'react-native';
 
-import {
-  ScreenHeader,
-  StatTile,
-  WebFallbackButton,
-  sharedScreenStyles,
-} from '@/src/components/ui/NativePrimitives';
 import { LoadingScreen, ScreenState } from '@/src/components/ui/ScreenState';
 import { useAuth } from '@/src/features/auth/AuthProvider';
 import {
@@ -137,6 +131,9 @@ export function FantasyScreen() {
 
   const nextEvent = data.events[0] ?? null;
   const topLeaderboard = data.leaderboard.slice(0, 5);
+  const nextEventStatus = getFantasyPickStatus(nextEvent);
+  const nextEventClosed = nextEventStatus.toLowerCase().includes('closed')
+    || nextEventStatus.toLowerCase().includes('locked');
   const currentStanding = useMemo(() => {
     if (!user?.id) return null;
     return data.leaderboard.find((standing) => standing.userId === user.id) ?? null;
@@ -146,7 +143,7 @@ export function FantasyScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -157,10 +154,26 @@ export function FantasyScreen() {
           />
         }
       >
-        <ScreenHeader
-          action={<WebFallbackButton onPress={openWebFallback} />}
-          title="Fantasy"
-        />
+        <View style={styles.header}>
+          <View style={styles.headerText}>
+            <Text style={styles.headerKicker}>Fight-night game</Text>
+            <Text style={styles.headerTitle}>Fantasy</Text>
+            <Text style={styles.headerCopy}>
+              Make picks, climb the table, and track event competition.
+            </Text>
+          </View>
+          <Pressable
+            accessibilityLabel="Open fantasy web tools"
+            hitSlop={8}
+            onPress={openWebFallback}
+            style={({ pressed }) => [
+              styles.webAction,
+              pressed ? styles.pressed : null,
+            ]}
+          >
+            <Text style={styles.webActionText}>Web</Text>
+          </Pressable>
+        </View>
 
         {error ? (
           <ScreenState
@@ -173,9 +186,14 @@ export function FantasyScreen() {
 
         <View style={styles.hero}>
           <View style={styles.heroTop}>
-            <Text style={styles.kicker}>Next card</Text>
-            <Text style={styles.statusPill}>
-              {getFantasyPickStatus(nextEvent)}
+            <Text style={styles.kicker}>Next event</Text>
+            <Text
+              style={[
+                styles.statusPill,
+                nextEventClosed ? styles.statusPillClosed : null,
+              ]}
+            >
+              {nextEventStatus}
             </Text>
           </View>
           <Text style={styles.heroTitle}>{nextEvent?.name || 'No upcoming event'}</Text>
@@ -184,17 +202,24 @@ export function FantasyScreen() {
               ? `${formatFantasyEventDate(nextEvent.starts_at || nextEvent.event_date)} - ${nextEvent.fights?.length ?? 0} fights`
               : 'Fantasy cards will appear here when they are scheduled.'}
           </Text>
-          <View style={styles.disabledCta}>
-            <Text style={styles.disabledCtaText}>Native picks coming later</Text>
-          </View>
+          <Pressable
+            accessibilityLabel="Open fantasy picks"
+            onPress={openWebFallback}
+            style={({ pressed }) => [
+              styles.heroCta,
+              pressed ? styles.pressed : null,
+            ]}
+          >
+            <Text style={styles.heroCtaText}>Open fantasy picks</Text>
+          </Pressable>
         </View>
 
         <View style={styles.grid}>
-          <StatTile
+          <FantasyStat
             label="Your rank"
             value={currentStanding ? `#${currentStanding.rank}` : '--'}
           />
-          <StatTile
+          <FantasyStat
             label="Your points"
             value={currentStanding ? String(currentStanding.points) : '0'}
           />
@@ -217,7 +242,7 @@ export function FantasyScreen() {
               ))}
             </View>
           ) : (
-            <Text style={styles.panelText}>No leaderboard rows available yet.</Text>
+            <Text style={styles.panelText}>Leaderboard opens once entries are available.</Text>
           )}
         </View>
 
@@ -234,7 +259,7 @@ export function FantasyScreen() {
               ))}
             </View>
           ) : (
-            <Text style={styles.panelText}>No upcoming fantasy events are available right now.</Text>
+            <Text style={styles.panelText}>No fantasy events are scheduled right now.</Text>
           )}
         </View>
 
@@ -255,7 +280,20 @@ export function FantasyScreen() {
   );
 }
 
+function FantasyStat({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.statBlock}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
 function EventRow({ event }: { event: FantasyEvent }) {
+  const status = getFantasyPickStatus(event);
+  const isClosed = status.toLowerCase().includes('closed')
+    || status.toLowerCase().includes('locked');
+
   return (
     <View style={styles.eventRow}>
       <View style={styles.eventInfo}>
@@ -264,7 +302,9 @@ function EventRow({ event }: { event: FantasyEvent }) {
           {formatFantasyEventDate(event.starts_at || event.event_date)} - {event.fights?.length ?? 0} fights
         </Text>
       </View>
-      <Text style={styles.eventStatus}>{getFantasyPickStatus(event)}</Text>
+      <Text style={[styles.eventStatus, isClosed ? styles.eventStatusClosed : null]}>
+        {status}
+      </Text>
     </View>
   );
 }
@@ -294,34 +334,19 @@ function RuleTile({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.background,
+    backgroundColor: '#fbfaf7',
     flex: 1,
   },
   countBadge: {
-    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderColor: colors.ink,
     borderWidth: 1,
-    color: colors.textSoft,
+    color: colors.ink,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1,
     paddingHorizontal: 8,
     paddingVertical: 5,
-    textTransform: 'uppercase',
-  },
-  disabledCta: {
-    alignItems: 'center',
-    borderColor: 'rgba(220,38,38,0.55)',
-    borderWidth: 1,
-    marginTop: 18,
-    minHeight: 48,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  disabledCtaText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
   eventInfo: {
@@ -333,13 +358,13 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   eventMeta: {
-    color: colors.muted,
+    color: colors.textSoft,
     fontSize: 12,
     fontWeight: '700',
     marginTop: 5,
   },
   eventName: {
-    color: colors.text,
+    color: colors.ink,
     fontSize: 14,
     fontWeight: '900',
     lineHeight: 18,
@@ -347,33 +372,92 @@ const styles = StyleSheet.create({
   },
   eventRow: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.32)',
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 12,
     padding: 13,
   },
   eventStatus: {
-    color: colors.textSoft,
-    fontSize: 10,
+    borderColor: colors.red,
+    borderWidth: 1,
+    color: colors.red,
+    fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.8,
-    textAlign: 'right',
+    minWidth: 90,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    textAlign: 'center',
     textTransform: 'uppercase',
-    width: 88,
+  },
+  eventStatusClosed: {
+    backgroundColor: colors.red,
+    color: colors.textInverse,
   },
   grid: {
     flexDirection: 'row',
     gap: 10,
   },
+  header: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 16,
+    justifyContent: 'space-between',
+  },
+  headerCopy: {
+    color: colors.textSoft,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginTop: 6,
+  },
+  headerKicker: {
+    color: colors.red,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+  },
+  headerText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  headerTitle: {
+    color: colors.ink,
+    fontSize: 34,
+    fontWeight: '900',
+    letterSpacing: -0.4,
+    lineHeight: 36,
+    marginTop: 3,
+    textTransform: 'uppercase',
+  },
   hero: {
-    backgroundColor: colors.panel,
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderTopColor: colors.accent,
+    backgroundColor: colors.surface,
+    borderColor: colors.ink,
+    borderTopColor: colors.red,
     borderTopWidth: 3,
     borderWidth: 1,
-    padding: 18,
+    padding: 17,
+  },
+  heroCta: {
+    alignItems: 'center',
+    backgroundColor: colors.red,
+    borderColor: colors.red,
+    borderRadius: 4,
+    borderWidth: 1,
+    justifyContent: 'center',
+    marginTop: 16,
+    minHeight: 46,
+    paddingHorizontal: 14,
+  },
+  heroCtaText: {
+    color: colors.textInverse,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   heroMeta: {
     color: colors.textSoft,
@@ -383,11 +467,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   heroTitle: {
-    color: colors.text,
-    fontSize: 30,
+    color: colors.ink,
+    fontSize: 28,
     fontWeight: '900',
-    letterSpacing: -0.5,
-    lineHeight: 32,
+    letterSpacing: -0.2,
+    lineHeight: 31,
     marginTop: 12,
     textTransform: 'uppercase',
   },
@@ -397,21 +481,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   inlineLink: {
-    color: colors.text,
+    color: colors.red,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
   kicker: {
-    color: colors.accent,
+    color: colors.red,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.8,
     textTransform: 'uppercase',
   },
   leaderName: {
-    color: colors.text,
+    color: colors.ink,
     flex: 1,
     fontSize: 14,
     fontWeight: '800',
@@ -424,12 +508,12 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   leaderPoints: {
-    color: colors.textSoft,
+    color: colors.ink,
     fontSize: 12,
     fontWeight: '900',
   },
   leaderRank: {
-    color: colors.accent,
+    color: colors.red,
     fontSize: 11,
     fontWeight: '900',
     width: 30,
@@ -440,8 +524,8 @@ const styles = StyleSheet.create({
   },
   leaderboardRow: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.32)',
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#fbfaf7',
+    borderColor: colors.border,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 10,
@@ -449,16 +533,18 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
   },
   noticeText: {
-    color: '#fbbf24',
+    color: colors.warning,
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 18,
     marginTop: 12,
   },
   panel: {
-    backgroundColor: colors.panel,
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
+    borderTopColor: colors.ink,
+    borderTopWidth: 2,
     padding: 16,
   },
   panelHeader: {
@@ -469,11 +555,15 @@ const styles = StyleSheet.create({
   panelText: {
     color: colors.textSoft,
     fontSize: 13,
+    fontWeight: '600',
     lineHeight: 19,
     marginTop: 14,
   },
+  pressed: {
+    opacity: 0.82,
+  },
   ruleLabel: {
-    color: colors.muted,
+    color: colors.textSoft,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1,
@@ -481,7 +571,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   ruleTile: {
-    backgroundColor: colors.panelSoft,
+    backgroundColor: '#fbfaf7',
     borderColor: colors.border,
     borderWidth: 1,
     flex: 1,
@@ -489,7 +579,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   ruleValue: {
-    color: colors.text,
+    color: colors.red,
     fontSize: 22,
     fontWeight: '900',
   },
@@ -500,17 +590,63 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   scrollContent: {
-    ...sharedScreenStyles.scrollContent,
+    gap: 14,
+    paddingBottom: 32,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+  },
+  statBlock: {
+    backgroundColor: colors.surface,
+    borderColor: colors.ink,
+    borderWidth: 1,
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  statLabel: {
+    color: colors.textSoft,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginTop: 3,
+    textTransform: 'uppercase',
+  },
+  statValue: {
+    color: colors.ink,
+    fontSize: 27,
+    fontWeight: '900',
+    lineHeight: 31,
   },
   statusPill: {
-    borderColor: 'rgba(220,38,38,0.45)',
+    borderColor: colors.red,
     borderWidth: 1,
-    color: colors.textSoft,
+    color: colors.red,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1,
     paddingHorizontal: 8,
     paddingVertical: 5,
+    textTransform: 'uppercase',
+  },
+  statusPillClosed: {
+    backgroundColor: colors.red,
+    color: colors.textInverse,
+  },
+  webAction: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.ink,
+    borderRadius: 4,
+    borderWidth: 1,
+    minHeight: 34,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+  },
+  webActionText: {
+    color: colors.ink,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
 });
