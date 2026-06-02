@@ -8,12 +8,11 @@ import {
   SafeAreaView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
 import {
-  ScreenHeader,
-  StatTile,
   WebFallbackButton,
   sharedScreenStyles,
 } from '@/src/components/ui/NativePrimitives';
@@ -22,8 +21,8 @@ import { useAuth } from '@/src/features/auth/AuthProvider';
 import {
   type NativeChecklistCard,
   type NativeChecklistSet,
+  type NativeChecklistWritableStatus,
   CHECKLIST_CARD_PAGE_SIZE,
-  getNextChecklistStatus,
   loadNativeChecklists,
   loadNativeSetCards,
   saveNativeChecklistStatus,
@@ -41,6 +40,8 @@ type SetsState = {
   userCardStatuses: Record<string, string | null>;
 };
 
+type CardFilter = 'all' | 'missing' | 'owned' | 'wanted';
+
 const emptyState: SetsState = {
   sets: [],
   summary: {
@@ -50,6 +51,13 @@ const emptyState: SetsState = {
   },
   userCardStatuses: {},
 };
+
+const cardFilters: { label: string; value: CardFilter }[] = [
+  { label: 'All', value: 'all' },
+  { label: 'Missing', value: 'missing' },
+  { label: 'Owned', value: 'owned' },
+  { label: 'Wanted', value: 'wanted' },
+];
 
 function formatReleaseDate(value: string | null) {
   if (!value) return 'Release TBA';
@@ -62,6 +70,12 @@ function formatReleaseDate(value: string | null) {
     month: 'short',
     year: 'numeric',
   }).format(date);
+}
+
+function formatSetMeta(set: NativeChecklistSet) {
+  return [set.year, set.brand, formatReleaseDate(set.releaseDate)]
+    .filter(Boolean)
+    .join(' / ');
 }
 
 function formatCardStatus(status: string | null) {
@@ -121,6 +135,26 @@ function applyCardStatus(data: SetsState, card: NativeChecklistCard, status: str
   };
 }
 
+function normalizeSearch(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function matchesCardFilter(card: NativeChecklistCard, filter: CardFilter) {
+  if (filter === 'all') return true;
+  if (filter === 'missing') return !card.status;
+  if (filter === 'wanted') return card.status === 'wanted';
+  return Boolean(card.status && OWNED_LIKE_STATUSES.has(card.status));
+}
+
+function getCardNumber(detail: string) {
+  const match = detail.match(/^#([^\s-]+)/);
+  return match?.[1] ?? '-';
+}
+
+function getCardVariation(detail: string) {
+  return detail.replace(/^#[^\s-]+\s*-\s*/, '') || 'Base card';
+}
+
 export function SetsScreen() {
   const { user } = useAuth();
   const listRef = useRef<FlatList<NativeChecklistCard>>(null);
@@ -139,6 +173,9 @@ export function SetsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [updatingCardIds, setUpdatingCardIds] = useState<Set<string>>(new Set());
+  const [setSearch, setSetSearch] = useState('');
+  const [cardSearch, setCardSearch] = useState('');
+  const [cardFilter, setCardFilter] = useState<CardFilter>('all');
 
   useEffect(() => {
     userCardStatusesRef.current = data.userCardStatuses;
@@ -153,7 +190,7 @@ export function SetsScreen() {
     setData(result.data);
     setSelectedSetId((current) => {
       if (current && result.data.sets.some((set) => set.id === current)) return current;
-      return result.data.sets[0]?.id ?? null;
+      return null;
     });
   }, [user?.id]);
 
@@ -232,6 +269,8 @@ export function SetsScreen() {
       setSelectedTotalCount(null);
       setNextCardFrom(0);
       setHasMoreCards(false);
+      setCardSearch('');
+      setCardFilter('all');
       return;
     }
 
@@ -253,10 +292,19 @@ export function SetsScreen() {
   };
 
   const selectSet = useCallback((setId: string) => {
+    setMutationError(null);
     setSelectedSetId(setId);
-    requestAnimationFrame(() => {
-      listRef.current?.scrollToOffset({ animated: true, offset: 620 });
-    });
+    listRef.current?.scrollToOffset({ animated: false, offset: 0 });
+  }, []);
+
+  const goBackToSets = useCallback(() => {
+    setSelectedSetId(null);
+    setSelectedCards([]);
+    setSelectedTotalCount(null);
+    setNextCardFrom(0);
+    setHasMoreCards(false);
+    setDetailError(null);
+    setMutationError(null);
   }, []);
 
   const loadMoreCards = useCallback(() => {
@@ -264,10 +312,16 @@ export function SetsScreen() {
     loadSetCardsPage({ from: nextCardFrom, mode: 'append', setId: selectedSetId });
   }, [hasMoreCards, isDetailLoading, isLoadingMore, loadSetCardsPage, nextCardFrom, selectedSetId]);
 
-  const handleToggleCard = useCallback(async (card: NativeChecklistCard) => {
+  const handleSetCardStatus = useCallback(async (
+    card: NativeChecklistCard,
+    requestedStatus: NativeChecklistWritableStatus,
+  ) => {
     if (!user?.id || updatingCardIds.has(card.cardId)) return;
 
-    const nextStatus = getNextChecklistStatus(card.status);
+    const isActive = requestedStatus === 'owned'
+      ? Boolean(card.status && OWNED_LIKE_STATUSES.has(card.status))
+      : card.status === 'wanted';
+    const nextStatus = isActive ? null : requestedStatus;
 
     setMutationError(null);
     setUpdatingCardIds((current) => new Set(current).add(card.cardId));
@@ -309,24 +363,55 @@ export function SetsScreen() {
     () => data.sets.find((set) => set.id === selectedSetId) ?? null,
     [data.sets, selectedSetId],
   );
+
+  const filteredSets = useMemo(() => {
+    const query = normalizeSearch(setSearch);
+    if (!query) return data.sets;
+
+    return data.sets.filter((set) => (
+      [set.name, set.brand, set.year, formatReleaseDate(set.releaseDate)]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(query)
+    ));
+  }, [data.sets, setSearch]);
+
+  const filteredCards = useMemo(() => {
+    const query = normalizeSearch(cardSearch);
+
+    return selectedCards.filter((card) => {
+      if (!matchesCardFilter(card, cardFilter)) return false;
+      if (!query) return true;
+
+      return [card.fighterName, card.detail, card.setName, formatCardStatus(card.status)]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [cardFilter, cardSearch, selectedCards]);
+
   const detailCountLabel = selectedTotalCount !== null
-    ? `${selectedCards.length}/${selectedTotalCount} cards`
+    ? `${selectedCards.length}/${selectedTotalCount} loaded`
     : `${selectedCards.length} loaded`;
+  const isFilteringCards = Boolean(normalizeSearch(cardSearch)) || cardFilter !== 'all';
+  const cardListData = selectedSet ? filteredCards : [];
 
   if (isLoading) return <LoadingScreen label="Loading sets" />;
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <FlatList
         ref={listRef}
-        data={selectedCards}
+        data={cardListData}
         keyExtractor={(card) => card.cardId}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
-            tintColor={colors.text}
+            tintColor={colors.red}
             onRefresh={refresh}
           />
         }
@@ -334,16 +419,23 @@ export function SetsScreen() {
           <ChecklistCardRow
             card={item}
             isUpdating={updatingCardIds.has(item.cardId)}
-            onPress={() => handleToggleCard(item)}
+            onSetStatus={handleSetCardStatus}
           />
         )}
         ItemSeparatorComponent={() => <View style={styles.cardSeparator} />}
         ListHeaderComponent={(
           <>
-            <ScreenHeader
-              action={<WebFallbackButton onPress={openWebFallback} />}
-              title="Sets"
-            />
+            <View style={styles.topBar}>
+              <View>
+                <Text style={styles.screenTitle}>{selectedSet ? 'Checklist' : 'Card Sets'}</Text>
+                <Text style={styles.screenSubtitle}>
+                  {selectedSet
+                    ? 'Track owned cards and wanted targets.'
+                    : 'Browse sets and open a fast mobile checklist.'}
+                </Text>
+              </View>
+              <WebFallbackButton onPress={openWebFallback} />
+            </View>
 
             {error ? (
               <ScreenState
@@ -356,81 +448,39 @@ export function SetsScreen() {
 
             {mutationError ? <Text style={styles.errorText}>{mutationError}</Text> : null}
 
-            <View style={styles.hero}>
-              <Text style={styles.kicker}>Checklists</Text>
-              <Text style={styles.heroTitle}>
-                {data.sets.length > 0 ? 'Browse the catalog' : 'Catalog coming soon'}
-              </Text>
-              <Text style={styles.heroText}>
-                Open a set to load its checklist in fast mobile-sized pages.
-              </Text>
-            </View>
-
-            <View style={styles.grid}>
-              <StatTile label="Sets" value={String(data.summary.sets)} />
-              <StatTile label="Owned" value={String(data.summary.owned)} />
-              <StatTile label="Wanted" value={String(data.summary.wanted)} />
-            </View>
-
-            <View style={styles.panel}>
-              <View style={styles.panelHeader}>
-                <Text style={styles.kicker}>Set list</Text>
-                <Text style={styles.countBadge}>{data.sets.length} sets</Text>
-              </View>
-
-              {data.sets.length > 0 ? (
-                <View style={styles.setList}>
-                  {data.sets.map((set) => (
-                    <SetRow
-                      key={set.id}
-                      isSelected={set.id === selectedSetId}
-                      onPress={() => selectSet(set.id)}
-                      set={set}
-                    />
-                  ))}
-                </View>
-              ) : (
-                <Text style={styles.panelText}>No sets are available in the native catalog yet.</Text>
-              )}
-            </View>
-
-            <View style={styles.panel}>
-              <View style={styles.panelHeader}>
-                <Text style={styles.kicker}>Set detail</Text>
-                <Text style={styles.countBadge}>{detailCountLabel}</Text>
-              </View>
-
-              {selectedSet ? (
-                <>
-                  <Text style={styles.sectionTitle}>{selectedSet.name}</Text>
-                  <Text style={styles.panelText}>
-                    {[selectedSet.year, selectedSet.brand, formatReleaseDate(selectedSet.releaseDate)]
-                      .filter(Boolean)
-                      .join(' - ')}
-                  </Text>
-                  <View style={styles.detailStats}>
-                    <MiniStat
-                      label="Total"
-                      value={selectedTotalCount === null ? '—' : String(selectedTotalCount)}
-                    />
-                    <MiniStat label="Owned" value={String(selectedSet.ownedCount)} />
-                    <MiniStat label="Wanted" value={String(selectedSet.wantedCount)} />
-                  </View>
-                  {detailError ? <Text style={styles.errorText}>{detailError}</Text> : null}
-                  {isDetailLoading ? (
-                    <Text style={styles.panelText}>Loading the first {CHECKLIST_CARD_PAGE_SIZE} cards...</Text>
-                  ) : null}
-                </>
-              ) : (
-                <Text style={styles.panelText}>Select a set to preview cards.</Text>
-              )}
-            </View>
+            {selectedSet ? (
+              <SetDetailHeader
+                cardFilter={cardFilter}
+                cardSearch={cardSearch}
+                detailCountLabel={detailCountLabel}
+                detailError={detailError}
+                isDetailLoading={isDetailLoading}
+                onBack={goBackToSets}
+                onChangeCardFilter={setCardFilter}
+                onChangeCardSearch={setCardSearch}
+                selectedSet={selectedSet}
+                selectedTotalCount={selectedTotalCount}
+              />
+            ) : (
+              <SetBrowser
+                filteredSets={filteredSets}
+                onChangeSearch={setSetSearch}
+                onSelectSet={selectSet}
+                search={setSearch}
+                sets={data.sets}
+                summary={data.summary}
+              />
+            )}
           </>
         )}
         ListEmptyComponent={(
-          selectedSet && !isDetailLoading && !detailError
-            ? <Text style={styles.panelText}>No cards found for this set.</Text>
-            : null
+          selectedSet && !isDetailLoading && !detailError ? (
+            <EmptyText
+              message={isFilteringCards
+                ? 'No cards match this search or filter.'
+                : 'No cards found for this set.'}
+            />
+          ) : null
         )}
         ListFooterComponent={(
           selectedSet ? (
@@ -456,50 +506,210 @@ export function SetsScreen() {
   );
 }
 
+function SetBrowser({
+  filteredSets,
+  onChangeSearch,
+  onSelectSet,
+  search,
+  sets,
+  summary,
+}: {
+  filteredSets: NativeChecklistSet[];
+  onChangeSearch: (value: string) => void;
+  onSelectSet: (setId: string) => void;
+  search: string;
+  sets: NativeChecklistSet[];
+  summary: SetsState['summary'];
+}) {
+  return (
+    <View style={styles.section}>
+      <View style={styles.summaryStrip}>
+        <MiniStat label="Sets" value={String(summary.sets)} />
+        <MiniStat label="Owned" value={String(summary.owned)} />
+        <MiniStat label="Wanted" value={String(summary.wanted)} />
+      </View>
+
+      <SearchInput
+        onChangeText={onChangeSearch}
+        placeholder="Search card sets"
+        value={search}
+      />
+
+      <View style={styles.listHeader}>
+        <Text style={styles.kicker}>Set browser</Text>
+        <Text style={styles.countText}>
+          {filteredSets.length} of {sets.length}
+        </Text>
+      </View>
+
+      {sets.length === 0 ? (
+        <EmptyText message="No sets are available in the native catalog yet." />
+      ) : filteredSets.length === 0 ? (
+        <EmptyText message="No card sets match this search." />
+      ) : (
+        <View style={styles.setList}>
+          {filteredSets.map((set) => (
+            <SetRow
+              key={set.id}
+              onPress={() => onSelectSet(set.id)}
+              set={set}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function SetDetailHeader({
+  cardFilter,
+  cardSearch,
+  detailCountLabel,
+  detailError,
+  isDetailLoading,
+  onBack,
+  onChangeCardFilter,
+  onChangeCardSearch,
+  selectedSet,
+  selectedTotalCount,
+}: {
+  cardFilter: CardFilter;
+  cardSearch: string;
+  detailCountLabel: string;
+  detailError: string | null;
+  isDetailLoading: boolean;
+  onBack: () => void;
+  onChangeCardFilter: (value: CardFilter) => void;
+  onChangeCardSearch: (value: string) => void;
+  selectedSet: NativeChecklistSet;
+  selectedTotalCount: number | null;
+}) {
+  return (
+    <View style={styles.section}>
+      <Pressable onPress={onBack} style={styles.backButton}>
+        <Text style={styles.backButtonText}>All sets</Text>
+      </Pressable>
+
+      <View style={styles.selectedHeader}>
+        <Text numberOfLines={2} style={styles.selectedTitle}>{selectedSet.name}</Text>
+        <Text numberOfLines={1} style={styles.selectedMeta}>{formatSetMeta(selectedSet)}</Text>
+      </View>
+
+      <View style={styles.summaryStrip}>
+        <MiniStat
+          label="Total"
+          value={selectedTotalCount === null ? '-' : String(selectedTotalCount)}
+        />
+        <MiniStat label="Owned" value={String(selectedSet.ownedCount)} />
+        <MiniStat label="Wanted" value={String(selectedSet.wantedCount)} />
+      </View>
+
+      <SearchInput
+        onChangeText={onChangeCardSearch}
+        placeholder="Search cards in this set"
+        value={cardSearch}
+      />
+
+      <View style={styles.filterRow}>
+        {cardFilters.map((filter) => (
+          <Pressable
+            key={filter.value}
+            onPress={() => onChangeCardFilter(filter.value)}
+            style={[styles.filterChip, cardFilter === filter.value ? styles.filterChipActive : null]}
+          >
+            <Text style={[styles.filterChipText, cardFilter === filter.value ? styles.filterChipTextActive : null]}>
+              {filter.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <View style={styles.listHeader}>
+        <Text style={styles.kicker}>Cards</Text>
+        <Text style={styles.countText}>{detailCountLabel}</Text>
+      </View>
+
+      {detailError ? <Text style={styles.errorText}>{detailError}</Text> : null}
+      {isDetailLoading ? (
+        <Text style={styles.helperText}>Loading the first {CHECKLIST_CARD_PAGE_SIZE} cards...</Text>
+      ) : null}
+    </View>
+  );
+}
+
 function ChecklistCardRow({
   card,
   isUpdating,
-  onPress,
+  onSetStatus,
 }: {
   card: NativeChecklistCard;
   isUpdating: boolean;
-  onPress: () => void;
+  onSetStatus: (card: NativeChecklistCard, status: NativeChecklistWritableStatus) => void;
 }) {
+  const isOwned = Boolean(card.status && OWNED_LIKE_STATUSES.has(card.status));
+  const isWanted = card.status === 'wanted';
+
   return (
-    <Pressable
-      disabled={isUpdating}
-      onPress={onPress}
-      style={[styles.cardRow, card.status ? styles.cardRowActive : null, isUpdating ? styles.cardRowUpdating : null]}
-    >
+    <View style={[styles.cardRow, isUpdating ? styles.rowUpdating : null]}>
+      <View style={styles.cardNumberWrap}>
+        <Text numberOfLines={1} style={styles.cardNumber}>
+          {getCardNumber(card.detail)}
+        </Text>
+      </View>
       <View style={styles.cardInfo}>
         <Text numberOfLines={1} style={styles.cardTitle}>
           {card.fighterName}
         </Text>
         <Text numberOfLines={1} style={styles.cardDetail}>
-          {card.detail}
+          {getCardVariation(card.detail)}
         </Text>
       </View>
-      <View style={styles.statusWrap}>
-        <Text style={[styles.statusBadge, getStatusBadgeStyle(card.status)]}>
-          {isUpdating ? 'Saving' : formatCardStatus(card.status)}
-        </Text>
-        <Text style={styles.nextStatusHint}>{getStatusHint(card.status)}</Text>
+      <View style={styles.statusControls}>
+        <StatusButton
+          active={isOwned}
+          disabled={isUpdating}
+          label="Owned"
+          onPress={() => onSetStatus(card, 'owned')}
+          tone="owned"
+        />
+        <StatusButton
+          active={isWanted}
+          disabled={isUpdating}
+          label="Wanted"
+          onPress={() => onSetStatus(card, 'wanted')}
+          tone="wanted"
+        />
       </View>
-    </Pressable>
+    </View>
   );
 }
 
-function getStatusBadgeStyle(status: string | null) {
-  if (status === 'wanted') return styles.statusWanted;
-  if (status && OWNED_LIKE_STATUSES.has(status)) return styles.statusOwned;
-  return styles.statusMissing;
-}
+function StatusButton({
+  active,
+  disabled,
+  label,
+  onPress,
+  tone,
+}: {
+  active: boolean;
+  disabled: boolean;
+  label: string;
+  onPress: () => void;
+  tone: 'owned' | 'wanted';
+}) {
+  const activeStyle = tone === 'wanted' ? styles.statusButtonWantedActive : styles.statusButtonOwnedActive;
 
-function getStatusHint(status: string | null) {
-  const next = getNextChecklistStatus(status);
-  if (next === 'owned') return 'Tap to own';
-  if (next === 'wanted') return 'Tap to want';
-  return 'Tap to clear';
+  return (
+    <Pressable
+      disabled={disabled}
+      onPress={onPress}
+      style={[styles.statusButton, active ? activeStyle : null]}
+    >
+      <Text style={[styles.statusButtonText, active ? styles.statusButtonTextActive : null]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
 }
 
 function MiniStat({ label, value }: { label: string; value: string }) {
@@ -511,295 +721,423 @@ function MiniStat({ label, value }: { label: string; value: string }) {
   );
 }
 
+function SearchInput({
+  onChangeText,
+  placeholder,
+  value,
+}: {
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.searchWrap}>
+      <TextInput
+        autoCapitalize="none"
+        autoCorrect={false}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.gray500}
+        returnKeyType="search"
+        style={styles.searchInput}
+        value={value}
+      />
+      {value ? (
+        <Pressable onPress={() => onChangeText('')} style={styles.clearSearchButton}>
+          <Text style={styles.clearSearchText}>Clear</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function EmptyText({ message }: { message: string }) {
+  return (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyText}>{message}</Text>
+    </View>
+  );
+}
+
 function SetRow({
-  isSelected,
   onPress,
   set,
 }: {
-  isSelected: boolean;
   onPress: () => void;
   set: NativeChecklistSet;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.setRow, isSelected ? styles.setRowSelected : null]}
+      style={styles.setRow}
     >
       <View style={styles.setInfo}>
         <Text numberOfLines={1} style={styles.setTitle}>
           {set.name}
         </Text>
         <Text numberOfLines={1} style={styles.setMeta}>
-          {[set.year, set.brand, formatReleaseDate(set.releaseDate)].filter(Boolean).join(' - ')}
+          {formatSetMeta(set)}
         </Text>
         <Text style={styles.setCounts}>
-          {set.cardCount === null ? '—' : set.cardCount} cards - {set.ownedCount} owned - {set.wantedCount} wanted
+          {set.cardCount === null ? '-' : set.cardCount} cards / {set.ownedCount} owned / {set.wantedCount} wanted
         </Text>
       </View>
-      <Text style={styles.setAction}>{isSelected ? 'Open' : 'View'}</Text>
+      <Text style={styles.setAction}>Open</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  backButton: {
+    alignSelf: 'flex-start',
+    borderColor: colors.ink,
+    borderRadius: 5,
+    borderWidth: 1,
+    marginBottom: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  backButtonText: {
+    color: colors.ink,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
   cardDetail: {
-    color: colors.muted,
-    fontSize: 12,
+    color: colors.textSoft,
+    fontSize: 11,
     fontWeight: '700',
-    marginTop: 5,
+    marginTop: 3,
   },
   cardInfo: {
     flex: 1,
     minWidth: 0,
   },
+  cardNumber: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  cardNumberWrap: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: 4,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 34,
+    width: 44,
+  },
   cardRow: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.32)',
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 6,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 12,
-    padding: 13,
-  },
-  cardRowActive: {
-    borderColor: 'rgba(220,38,38,0.32)',
-  },
-  cardRowUpdating: {
-    opacity: 0.62,
+    gap: 9,
+    minHeight: 62,
+    paddingHorizontal: 9,
+    paddingVertical: 8,
   },
   cardSeparator: {
-    height: 9,
+    height: 8,
   },
   cardTitle: {
-    color: colors.text,
-    fontSize: 14,
+    color: colors.ink,
+    fontSize: 13,
     fontWeight: '900',
-    lineHeight: 18,
+    lineHeight: 17,
+    textTransform: 'uppercase',
+  },
+  clearSearchButton: {
+    paddingHorizontal: 4,
+    paddingVertical: 5,
+  },
+  clearSearchText: {
+    color: colors.red,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.7,
     textTransform: 'uppercase',
   },
   container: {
-    backgroundColor: colors.background,
+    backgroundColor: '#fbfaf7',
     flex: 1,
   },
-  countBadge: {
+  countText: {
+    color: colors.textSoft,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  emptyState: {
     borderColor: colors.border,
+    borderRadius: 6,
     borderWidth: 1,
+    padding: 14,
+  },
+  emptyText: {
+    color: colors.textSoft,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  endText: {
     color: colors.textSoft,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    textTransform: 'uppercase',
-  },
-  detailStats: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 14,
-  },
-  errorText: {
-    color: '#fca5a5',
-    fontSize: 13,
-    fontWeight: '800',
-    lineHeight: 18,
-  },
-  endText: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.1,
     textAlign: 'center',
     textTransform: 'uppercase',
   },
-  footer: {
-    paddingBottom: 6,
-    paddingTop: 14,
+  errorText: {
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
+    marginBottom: 10,
   },
-  grid: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  hero: {
-    backgroundColor: colors.panel,
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderTopColor: colors.accent,
-    borderTopWidth: 3,
+  filterChip: {
+    borderColor: colors.border,
+    borderRadius: 5,
     borderWidth: 1,
-    padding: 18,
+    flex: 1,
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: 7,
   },
-  heroText: {
+  filterChipActive: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+  },
+  filterChipText: {
     color: colors.textSoft,
-    fontSize: 14,
-    lineHeight: 21,
-    marginTop: 12,
-  },
-  heroTitle: {
-    color: colors.text,
-    fontSize: 29,
-    fontWeight: '900',
-    letterSpacing: -0.4,
-    lineHeight: 32,
-    marginTop: 8,
-    textTransform: 'uppercase',
-  },
-  kicker: {
-    color: colors.accent,
     fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 1.8,
+    letterSpacing: 0.6,
+    textAlign: 'center',
     textTransform: 'uppercase',
+  },
+  filterChipTextActive: {
+    color: colors.textInverse,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 7,
+    marginTop: 10,
+  },
+  footer: {
+    paddingBottom: 18,
+    paddingTop: 14,
+  },
+  helperText: {
+    color: colors.textSoft,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginTop: 10,
+  },
+  kicker: {
+    color: colors.red,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.3,
+    textTransform: 'uppercase',
+  },
+  listHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    marginTop: 14,
   },
   loadMoreButton: {
     alignItems: 'center',
-    backgroundColor: colors.accent,
+    backgroundColor: colors.ink,
+    borderRadius: 6,
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 46,
     paddingHorizontal: 16,
   },
   loadMoreButtonDisabled: {
     opacity: 0.62,
   },
   loadMoreText: {
-    color: colors.text,
+    color: colors.textInverse,
     fontSize: 11,
     fontWeight: '900',
-    letterSpacing: 1.4,
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
   miniStat: {
-    backgroundColor: colors.panelSoft,
+    backgroundColor: colors.surface,
     borderColor: colors.border,
+    borderRadius: 6,
     borderWidth: 1,
     flex: 1,
-    padding: 11,
+    paddingHorizontal: 10,
+    paddingVertical: 11,
   },
   miniStatLabel: {
-    color: colors.muted,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1,
-    marginTop: 4,
-    textTransform: 'uppercase',
-  },
-  miniStatValue: {
-    color: colors.text,
-    fontSize: 21,
-    fontWeight: '900',
-  },
-  panel: {
-    backgroundColor: colors.panel,
-    borderColor: colors.border,
-    borderWidth: 1,
-    padding: 16,
-  },
-  panelHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  panelText: {
     color: colors.textSoft,
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: 10,
-  },
-  scrollContent: {
-    ...sharedScreenStyles.scrollContent,
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: '900',
-    letterSpacing: -0.1,
-    lineHeight: 24,
-    marginTop: 12,
-    textTransform: 'uppercase',
-  },
-  nextStatusHint: {
-    color: colors.muted,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.8,
-    marginTop: 5,
-    textAlign: 'right',
+    marginTop: 2,
+    textTransform: 'uppercase',
+  },
+  miniStatValue: {
+    color: colors.ink,
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  rowUpdating: {
+    opacity: 0.58,
+  },
+  screenSubtitle: {
+    color: colors.textSoft,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginTop: 4,
+    maxWidth: 250,
+  },
+  screenTitle: {
+    color: colors.ink,
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+  },
+  scrollContent: {
+    ...sharedScreenStyles.scrollContent,
+    gap: 0,
+  },
+  searchInput: {
+    color: colors.ink,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '800',
+    minHeight: 44,
+    paddingVertical: 0,
+  },
+  searchWrap: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+    paddingHorizontal: 12,
+  },
+  section: {
+    marginTop: 16,
+  },
+  selectedHeader: {
+    borderLeftColor: colors.red,
+    borderLeftWidth: 4,
+    paddingLeft: 11,
+  },
+  selectedMeta: {
+    color: colors.textSoft,
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 6,
+  },
+  selectedTitle: {
+    color: colors.ink,
+    fontSize: 21,
+    fontWeight: '900',
+    letterSpacing: -0.1,
+    lineHeight: 25,
     textTransform: 'uppercase',
   },
   setAction: {
-    borderColor: 'rgba(220,38,38,0.35)',
-    borderWidth: 1,
-    color: colors.textSoft,
+    color: colors.red,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.9,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
     textTransform: 'uppercase',
   },
   setCounts: {
     color: colors.textSoft,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
-    marginTop: 7,
+    marginTop: 5,
   },
   setInfo: {
     flex: 1,
     minWidth: 0,
   },
   setList: {
-    gap: 9,
-    marginTop: 14,
+    gap: 8,
   },
   setMeta: {
-    color: colors.muted,
-    fontSize: 12,
+    color: colors.textSoft,
+    fontSize: 11,
     fontWeight: '700',
-    marginTop: 5,
+    marginTop: 4,
   },
   setRow: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.32)',
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 6,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 12,
-    padding: 13,
-  },
-  setRowSelected: {
-    borderColor: 'rgba(220,38,38,0.55)',
+    minHeight: 68,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   setTitle: {
-    color: colors.text,
+    color: colors.ink,
     fontSize: 14,
     fontWeight: '900',
     lineHeight: 18,
     textTransform: 'uppercase',
   },
-  statusBadge: {
-    borderColor: 'rgba(220,38,38,0.35)',
+  statusButton: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: 4,
     borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 28,
+    paddingHorizontal: 7,
+    width: 58,
+  },
+  statusButtonOwnedActive: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+  },
+  statusButtonText: {
     color: colors.textSoft,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '900',
-    letterSpacing: 0.8,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    textAlign: 'right',
+    letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
-  statusMissing: {
-    borderColor: colors.border,
-    color: colors.muted,
+  statusButtonTextActive: {
+    color: colors.textInverse,
   },
-  statusOwned: {
-    borderColor: 'rgba(34,197,94,0.5)',
-    color: '#86efac',
+  statusButtonWantedActive: {
+    backgroundColor: colors.red,
+    borderColor: colors.red,
   },
-  statusWanted: {
-    borderColor: 'rgba(251,191,36,0.5)',
-    color: '#fde68a',
+  statusControls: {
+    gap: 5,
   },
-  statusWrap: {
-    alignItems: 'flex-end',
-    minWidth: 88,
+  summaryStrip: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  topBar: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
 });
