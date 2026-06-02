@@ -730,8 +730,10 @@ function ChecklistCardRow({
           <Text numberOfLines={1} style={styles.cardTitle}>
             {card.fighterName}
           </Text>
-          {card.isRookie ? <Text style={styles.rookieBadge}>RC</Text> : null}
-          {printRun ? <Text style={styles.printRunBadge}>{printRun}</Text> : null}
+          <View style={styles.cardBadgeRow}>
+            {card.isRookie ? <Text style={styles.rookieBadge}>RC</Text> : null}
+            {printRun ? <Text style={styles.printRunBadge}>{printRun}</Text> : null}
+          </View>
         </View>
         <Text numberOfLines={1} style={styles.cardDetail}>
           {formatCardMeta(card)}
@@ -776,7 +778,11 @@ function StatusButton({
     <Pressable
       disabled={disabled}
       onPress={onPress}
-      style={[styles.statusButton, active ? activeStyle : null]}
+      style={({ pressed }) => [
+        styles.statusButton,
+        active ? activeStyle : null,
+        pressed && !disabled ? styles.statusButtonPressed : null,
+      ]}
     >
       <Text style={[styles.statusButtonText, active ? styles.statusButtonTextActive : null]}>
         {label}
@@ -917,10 +923,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   cardDetail: {
-    color: colors.textSoft,
+    color: colors.gray500,
     fontSize: 11,
     fontWeight: '700',
-    marginTop: 3,
+    lineHeight: 15,
+    marginTop: 4,
   },
   cardInfo: {
     flex: 1,
@@ -940,37 +947,44 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 1,
     justifyContent: 'center',
-    minHeight: 34,
+    minHeight: 38,
     paddingHorizontal: 4,
-    width: 48,
+    width: 50,
   },
   cardRow: {
-    alignItems: 'center',
+    alignItems: 'stretch',
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 6,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 10,
-    minHeight: 64,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    gap: 11,
+    minHeight: 70,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
   },
   cardSeparator: {
     height: 8,
   },
   cardTitle: {
     color: colors.ink,
-    fontSize: 13,
+    fontSize: 14,
     flex: 1,
     fontWeight: '900',
-    lineHeight: 17,
+    lineHeight: 18,
+    minWidth: 0,
     textTransform: 'uppercase',
   },
-  cardTitleRow: {
+  cardBadgeRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 5,
+    gap: 4,
+    flexShrink: 0,
+  },
+  cardTitleRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 7,
   },
   clearSearchButton: {
     paddingHorizontal: 4,
@@ -1056,10 +1070,11 @@ const styles = StyleSheet.create({
     color: colors.red,
     fontSize: 9,
     fontWeight: '900',
-    letterSpacing: 0.5,
+    letterSpacing: 0.35,
+    lineHeight: 11,
     overflow: 'hidden',
     paddingHorizontal: 4,
-    paddingVertical: 1,
+    paddingVertical: 2,
   },
   footer: {
     paddingBottom: 18,
@@ -1135,7 +1150,8 @@ const styles = StyleSheet.create({
     color: colors.textInverse,
     fontSize: 9,
     fontWeight: '900',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
+    lineHeight: 11,
     overflow: 'hidden',
     paddingHorizontal: 4,
     paddingVertical: 2,
@@ -1296,23 +1312,27 @@ const styles = StyleSheet.create({
   },
   statusButton: {
     alignItems: 'center',
-    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderColor: colors.gray200,
     borderRadius: 4,
     borderWidth: 1,
     justifyContent: 'center',
-    minHeight: 27,
+    minHeight: 29,
     paddingHorizontal: 6,
-    width: 56,
+    width: 58,
   },
   statusButtonOwnedActive: {
     backgroundColor: colors.ink,
     borderColor: colors.ink,
   },
+  statusButtonPressed: {
+    opacity: 0.72,
+  },
   statusButtonText: {
-    color: colors.textSoft,
+    color: colors.gray500,
     fontSize: 9,
     fontWeight: '900',
-    letterSpacing: 0.4,
+    letterSpacing: 0.55,
     textTransform: 'uppercase',
   },
   statusButtonTextActive: {
@@ -1323,7 +1343,8 @@ const styles = StyleSheet.create({
     borderColor: colors.red,
   },
   statusControls: {
-    gap: 4,
+    gap: 5,
+    justifyContent: 'center',
   },
   summaryStrip: {
     flexDirection: 'row',
