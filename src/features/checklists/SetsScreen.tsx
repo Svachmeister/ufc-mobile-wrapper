@@ -78,13 +78,6 @@ function formatSetMeta(set: NativeChecklistSet) {
     .join(' / ');
 }
 
-function formatCardStatus(status: string | null) {
-  if (!status) return 'Missing';
-  if (status === 'wanted') return 'Wanted';
-  if (OWNED_LIKE_STATUSES.has(status)) return 'Owned';
-  return status.replace(/_/g, ' ');
-}
-
 function getStatusCounts(statuses: Iterable<string | null>) {
   const values = [...statuses];
 
@@ -155,9 +148,30 @@ function getCardVariation(detail: string) {
   return detail.replace(/^#[^\s-]+\s*-\s*/, '') || 'Base card';
 }
 
+function getChecklistCardKey(card: NativeChecklistCard) {
+  if (card.cardId && card.cardId !== 'unknown-card') return card.cardId;
+  return [card.setId, card.fighterName, card.detail].filter(Boolean).join(':');
+}
+
+function mergeUniqueCards(
+  current: NativeChecklistCard[],
+  incoming: NativeChecklistCard[],
+  mode: 'append' | 'replace',
+) {
+  const map = new Map<string, NativeChecklistCard>();
+  const source = mode === 'append' ? [...current, ...incoming] : incoming;
+
+  source.forEach((card) => {
+    map.set(getChecklistCardKey(card), card);
+  });
+
+  return [...map.values()];
+}
+
 export function SetsScreen() {
   const { user } = useAuth();
   const listRef = useRef<FlatList<NativeChecklistCard>>(null);
+  const detailRequestRef = useRef(0);
   const userCardStatusesRef = useRef<Record<string, string | null>>({});
   const [data, setData] = useState<SetsState>(emptyState);
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
@@ -197,12 +211,17 @@ export function SetsScreen() {
   const loadSetCardsPage = useCallback(async ({
     from,
     mode,
+    searchQuery,
     setId,
   }: {
     from: number;
     mode: 'append' | 'replace';
+    searchQuery: string;
     setId: string;
   }) => {
+    const requestId = detailRequestRef.current + 1;
+    detailRequestRef.current = requestId;
+
     if (mode === 'append') {
       setIsLoadingMore(true);
     } else {
@@ -216,9 +235,19 @@ export function SetsScreen() {
 
     const result = await loadNativeSetCards({
       from,
+      searchQuery,
       setId,
       userCardStatuses: userCardStatusesRef.current,
     });
+
+    if (detailRequestRef.current !== requestId) {
+      if (mode === 'append') {
+        setIsLoadingMore(false);
+      } else {
+        setIsDetailLoading(false);
+      }
+      return;
+    }
 
     if (result.error) {
       setDetailError(result.error);
@@ -226,9 +255,7 @@ export function SetsScreen() {
       setDetailError(null);
     }
 
-    setSelectedCards((current) => (
-      mode === 'append' ? [...current, ...result.cards] : result.cards
-    ));
+    setSelectedCards((current) => mergeUniqueCards(current, result.cards, mode));
     setSelectedTotalCount(result.totalCount);
     setNextCardFrom(result.nextFrom);
     setHasMoreCards(result.hasMore);
@@ -263,6 +290,8 @@ export function SetsScreen() {
     };
   }, [loadSets]);
 
+  const normalizedCardSearch = normalizeSearch(cardSearch);
+
   useEffect(() => {
     if (!selectedSetId) {
       setSelectedCards([]);
@@ -274,15 +303,25 @@ export function SetsScreen() {
       return;
     }
 
-    loadSetCardsPage({ from: 0, mode: 'replace', setId: selectedSetId });
-  }, [loadSetCardsPage, selectedSetId]);
+    loadSetCardsPage({
+      from: 0,
+      mode: 'replace',
+      searchQuery: normalizedCardSearch,
+      setId: selectedSetId,
+    });
+  }, [loadSetCardsPage, normalizedCardSearch, selectedSetId]);
 
   const refresh = async () => {
     setIsRefreshing(true);
     setMutationError(null);
     await loadSets();
     if (selectedSetId) {
-      await loadSetCardsPage({ from: 0, mode: 'replace', setId: selectedSetId });
+      await loadSetCardsPage({
+        from: 0,
+        mode: 'replace',
+        searchQuery: normalizedCardSearch,
+        setId: selectedSetId,
+      });
     }
     setIsRefreshing(false);
   };
@@ -309,8 +348,21 @@ export function SetsScreen() {
 
   const loadMoreCards = useCallback(() => {
     if (!selectedSetId || isLoadingMore || isDetailLoading || !hasMoreCards) return;
-    loadSetCardsPage({ from: nextCardFrom, mode: 'append', setId: selectedSetId });
-  }, [hasMoreCards, isDetailLoading, isLoadingMore, loadSetCardsPage, nextCardFrom, selectedSetId]);
+    loadSetCardsPage({
+      from: nextCardFrom,
+      mode: 'append',
+      searchQuery: normalizedCardSearch,
+      setId: selectedSetId,
+    });
+  }, [
+    hasMoreCards,
+    isDetailLoading,
+    isLoadingMore,
+    loadSetCardsPage,
+    nextCardFrom,
+    normalizedCardSearch,
+    selectedSetId,
+  ]);
 
   const handleSetCardStatus = useCallback(async (
     card: NativeChecklistCard,
@@ -378,24 +430,16 @@ export function SetsScreen() {
   }, [data.sets, setSearch]);
 
   const filteredCards = useMemo(() => {
-    const query = normalizeSearch(cardSearch);
-
     return selectedCards.filter((card) => {
       if (!matchesCardFilter(card, cardFilter)) return false;
-      if (!query) return true;
-
-      return [card.fighterName, card.detail, card.setName, formatCardStatus(card.status)]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-        .includes(query);
+      return true;
     });
-  }, [cardFilter, cardSearch, selectedCards]);
+  }, [cardFilter, selectedCards]);
 
   const detailCountLabel = selectedTotalCount !== null
     ? `${selectedCards.length}/${selectedTotalCount} loaded`
     : `${selectedCards.length} loaded`;
-  const isFilteringCards = Boolean(normalizeSearch(cardSearch)) || cardFilter !== 'all';
+  const isFilteringCards = Boolean(normalizedCardSearch) || cardFilter !== 'all';
   const cardListData = selectedSet ? filteredCards : [];
 
   if (isLoading) return <LoadingScreen label="Loading sets" />;
@@ -406,7 +450,7 @@ export function SetsScreen() {
       <FlatList
         ref={listRef}
         data={cardListData}
-        keyExtractor={(card) => card.cardId}
+        keyExtractor={(card) => getChecklistCardKey(card)}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl

@@ -175,18 +175,32 @@ function applySetOwnershipCounts(
 export async function loadNativeSetCards({
   from = 0,
   pageSize = CHECKLIST_CARD_PAGE_SIZE,
+  searchQuery = '',
   setId,
   userCardStatuses,
 }: {
   from?: number;
   pageSize?: number;
+  searchQuery?: string;
   setId: string;
   userCardStatuses: Record<string, string | null>;
 }) {
-  const { count, data, error } = await supabase
+  const searchTerm = sanitizeCardSearchTerm(searchQuery);
+  let query = supabase
     .from('cards')
     .select('id,set_id,fighter_name,card_number,variation', { count: 'exact' })
-    .eq('set_id', setId)
+    .eq('set_id', setId);
+
+  if (searchTerm) {
+    const pattern = `%${searchTerm}%`;
+    query = query.or([
+      `fighter_name.ilike.${pattern}`,
+      `card_number.ilike.${pattern}`,
+      `variation.ilike.${pattern}`,
+    ].join(','));
+  }
+
+  const { count, data, error } = await query
     .order('card_number', { ascending: true })
     .order('fighter_name', { ascending: true })
     .range(from, from + pageSize - 1);
@@ -222,6 +236,14 @@ export async function loadNativeSetCards({
     nextFrom,
     totalCount: count ?? null,
   };
+}
+
+function sanitizeCardSearchTerm(value: string) {
+  // These characters either affect SQL LIKE matching or PostgREST .or(...) parsing.
+  return value
+    .trim()
+    .replace(/[%*_(),'"\\]/g, ' ')
+    .replace(/\s+/g, ' ');
 }
 
 export function getNextChecklistStatus(status: string | null): NativeChecklistWritableStatus | null {
