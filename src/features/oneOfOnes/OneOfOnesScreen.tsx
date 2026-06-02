@@ -193,6 +193,8 @@ export function OneOfOnesScreen() {
 
   const hasCards = cards.length > 0;
   const hasSearchOrFilter = Boolean(search.trim()) || filter !== 'all';
+  const pulledCount = cards.filter((card) => card.tracker_status === 'pulled').length;
+  const notSeenCount = cards.filter((card) => card.tracker_status === 'not_seen').length;
 
   if (isLoading) return <LoadingScreen label="Loading tracker" />;
 
@@ -225,9 +227,15 @@ export function OneOfOnesScreen() {
                 <Text style={styles.kicker}>Fight Card Society</Text>
                 <Text style={styles.title}>1-of-1 Tracker</Text>
                 <Text style={styles.subtitle}>
-                  Verified 1-of-1 cards that have been pulled or publicly reported.
+                  Follow the rarest chase cards as they are pulled, verified, or still missing.
                 </Text>
               </View>
+            </View>
+
+            <View style={styles.summaryStrip}>
+              <SummaryCell label="Loaded" value={String(loadedCount)} />
+              <SummaryCell label="Pulled" value={String(pulledCount)} tone="red" />
+              <SummaryCell label="Not seen" value={String(notSeenCount)} />
             </View>
 
             <View style={styles.searchWrap}>
@@ -303,9 +311,11 @@ export function OneOfOnesScreen() {
               <Text style={styles.emptyTitle}>
                 {hasSearchOrFilter
                   ? 'No tracker cards match this search.'
-                  : 'No tracker cards loaded yet.'}
+                  : 'No chase cards loaded yet.'}
               </Text>
-              <Text style={styles.emptyText}>Pulled and Not Seen tracker candidates will appear here.</Text>
+              <Text style={styles.emptyText}>
+                Pulled and not-seen 1-of-1 candidates will appear here once the tracker feed returns rows.
+              </Text>
             </View>
           ) : null
         )}
@@ -389,6 +399,9 @@ function TrackerCard({
           <Text numberOfLines={1} style={styles.timeText}>
             {statusHelper || formatRelativeTime(timeValue)}
           </Text>
+          {onPress ? (
+            <MaterialCommunityIcons color={colors.ink} name="chevron-right" size={20} />
+          ) : null}
         </View>
         <Text numberOfLines={2} style={styles.fighterName}>
           {(card.fighter_name || 'Unknown Fighter').toUpperCase()}
@@ -406,6 +419,25 @@ function TrackerCard({
   );
 }
 
+function SummaryCell({
+  label,
+  tone,
+  value,
+}: {
+  label: string;
+  tone?: 'red';
+  value: string;
+}) {
+  return (
+    <View style={styles.summaryCell}>
+      <Text style={[styles.summaryValue, tone === 'red' ? styles.summaryValueRed : null]}>
+        {value}
+      </Text>
+      <Text style={styles.summaryLabel}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   backButton: {
     alignItems: 'center',
@@ -419,19 +451,23 @@ const styles = StyleSheet.create({
   },
   badgeRow: {
     flexDirection: 'row',
-    gap: 5,
-    left: 10,
+    flexWrap: 'wrap',
+    gap: 4,
+    left: 8,
     position: 'absolute',
-    top: 10,
+    top: 8,
     zIndex: 2,
   },
   card: {
+    alignItems: 'stretch',
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     borderTopColor: colors.ink,
-    borderTopWidth: 3,
+    borderTopWidth: 4,
     borderWidth: 1,
+    flexDirection: 'row',
+    minHeight: 146,
     overflow: 'hidden',
   },
   notSeenCard: {
@@ -441,26 +477,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.ink,
     borderColor: colors.red,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    height: 112,
+    height: 92,
     justifyContent: 'center',
-    width: 86,
+    width: 70,
   },
   cardArtBrand: {
     color: colors.textInverse,
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '900',
     letterSpacing: 1.4,
   },
   cardArtRule: {
     backgroundColor: colors.red,
-    height: 3,
-    marginVertical: 8,
-    width: 34,
+    height: 2,
+    marginVertical: 7,
+    width: 29,
   },
   cardBody: {
-    padding: 14,
+    flex: 1,
+    justifyContent: 'center',
+    minWidth: 0,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
   },
   cardImage: {
     height: '100%',
@@ -472,7 +512,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.3,
     lineHeight: 16,
-    marginTop: 7,
+    marginTop: 6,
     textTransform: 'uppercase',
   },
   cardTopLine: {
@@ -514,11 +554,11 @@ const styles = StyleSheet.create({
   },
   fighterName: {
     color: colors.ink,
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
     letterSpacing: -0.2,
-    lineHeight: 25,
-    marginTop: 7,
+    lineHeight: 23,
+    marginTop: 8,
     textTransform: 'uppercase',
   },
   filterChip: {
@@ -564,11 +604,13 @@ const styles = StyleSheet.create({
   },
   imageArea: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    height: 190,
+    backgroundColor: '#f1f1ec',
+    borderRightColor: colors.border,
+    borderRightWidth: 1,
+    flexShrink: 0,
+    minHeight: 146,
     justifyContent: 'center',
+    width: 112,
   },
   kicker: {
     color: colors.red,
@@ -580,15 +622,15 @@ const styles = StyleSheet.create({
   oneBadge: {
     backgroundColor: colors.surface,
     borderColor: colors.red,
-    borderRadius: radius.sm,
+    borderRadius: 2,
     borderWidth: 1,
     color: colors.red,
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: '900',
     letterSpacing: 0.7,
     overflow: 'hidden',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
     textTransform: 'uppercase',
   },
   notSeenStatusBadge: {
@@ -667,15 +709,15 @@ const styles = StyleSheet.create({
   statusBadge: {
     backgroundColor: colors.red,
     borderColor: colors.red,
-    borderRadius: radius.sm,
+    borderRadius: 2,
     borderWidth: 1,
     color: colors.textInverse,
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: '900',
     letterSpacing: 0.7,
     overflow: 'hidden',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
     textTransform: 'uppercase',
   },
   subtitle: {
@@ -700,5 +742,36 @@ const styles = StyleSheet.create({
     lineHeight: 31,
     marginTop: 2,
     textTransform: 'uppercase',
+  },
+  summaryCell: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flex: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  summaryLabel: {
+    color: colors.gray700,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.9,
+    marginTop: 2,
+    textTransform: 'uppercase',
+  },
+  summaryStrip: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+  },
+  summaryValue: {
+    color: colors.ink,
+    fontSize: 22,
+    fontWeight: '900',
+    lineHeight: 24,
+  },
+  summaryValueRed: {
+    color: colors.red,
   },
 });
