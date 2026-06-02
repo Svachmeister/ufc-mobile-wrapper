@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
+  Image,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -146,6 +147,19 @@ function getCardNumber(detail: string) {
 
 function getCardVariation(detail: string) {
   return detail.replace(/^#[^\s-]+\s*-\s*/, '') || 'Base card';
+}
+
+function formatPrintRun(value: string | null) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.includes('/')) return trimmed;
+  return `/${trimmed}`;
+}
+
+function formatCardMeta(card: NativeChecklistCard) {
+  const variation = getCardVariation(card.detail);
+  return [card.subset, variation].filter(Boolean).join(' / ') || 'Base card';
 }
 
 function getChecklistCardKey(card: NativeChecklistCard) {
@@ -635,8 +649,11 @@ function SetDetailHeader({
       </Pressable>
 
       <View style={styles.selectedHeader}>
-        <Text numberOfLines={2} style={styles.selectedTitle}>{selectedSet.name}</Text>
-        <Text numberOfLines={1} style={styles.selectedMeta}>{formatSetMeta(selectedSet)}</Text>
+        <SetCover imageUrl={selectedSet.imageUrl} size="large" />
+        <View style={styles.selectedInfo}>
+          <Text numberOfLines={2} style={styles.selectedTitle}>{selectedSet.name}</Text>
+          <Text numberOfLines={2} style={styles.selectedMeta}>{formatSetMeta(selectedSet)}</Text>
+        </View>
       </View>
 
       <View style={styles.summaryStrip}>
@@ -692,21 +709,26 @@ function ChecklistCardRow({
 }) {
   const isOwned = Boolean(card.status && OWNED_LIKE_STATUSES.has(card.status));
   const isWanted = card.status === 'wanted';
+  const printRun = formatPrintRun(card.printRun);
 
   return (
     <View style={[styles.cardRow, isUpdating ? styles.rowUpdating : null]}>
       <View style={styles.cardNumberWrap}>
         <Text numberOfLines={1} style={styles.cardNumber}>
-          {getCardNumber(card.detail)}
+          {card.cardIdLabel ?? getCardNumber(card.detail)}
         </Text>
       </View>
       <View style={styles.cardInfo}>
-        <Text numberOfLines={1} style={styles.cardTitle}>
-          {card.fighterName}
-        </Text>
+        <View style={styles.cardTitleRow}>
+          <Text numberOfLines={1} style={styles.cardTitle}>
+            {card.fighterName}
+          </Text>
+          {card.isRookie ? <Text style={styles.rookieBadge}>RC</Text> : null}
+        </View>
         <Text numberOfLines={1} style={styles.cardDetail}>
-          {getCardVariation(card.detail)}
+          {formatCardMeta(card)}
         </Text>
+        {printRun ? <Text style={styles.printRunText}>{printRun}</Text> : null}
       </View>
       <View style={styles.statusControls}>
         <StatusButton
@@ -815,6 +837,7 @@ function SetRow({
       onPress={onPress}
       style={styles.setRow}
     >
+      <SetCover imageUrl={set.imageUrl} size="small" />
       <View style={styles.setInfo}>
         <Text numberOfLines={1} style={styles.setTitle}>
           {set.name}
@@ -828,6 +851,36 @@ function SetRow({
       </View>
       <Text style={styles.setAction}>Open</Text>
     </Pressable>
+  );
+}
+
+function SetCover({
+  imageUrl,
+  size,
+}: {
+  imageUrl: string | null;
+  size: 'large' | 'small';
+}) {
+  const [failed, setFailed] = useState(false);
+  const style = size === 'large' ? styles.setCoverLarge : styles.setCoverSmall;
+
+  if (!imageUrl || failed) {
+    return (
+      <View style={[styles.setCover, style, styles.setCoverPlaceholder]}>
+        <Text style={styles.setCoverPlaceholderText}>FCS</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.setCover, style]}>
+      <Image
+        onError={() => setFailed(true)}
+        resizeMode="contain"
+        source={{ uri: imageUrl }}
+        style={styles.setCoverImage}
+      />
+    </View>
   );
 }
 
@@ -881,7 +934,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: 9,
-    minHeight: 62,
+    minHeight: 66,
     paddingHorizontal: 9,
     paddingVertical: 8,
   },
@@ -891,9 +944,15 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: colors.ink,
     fontSize: 13,
+    flex: 1,
     fontWeight: '900',
     lineHeight: 17,
     textTransform: 'uppercase',
+  },
+  cardTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
   },
   clearSearchButton: {
     paddingHorizontal: 4,
@@ -972,6 +1031,14 @@ const styles = StyleSheet.create({
     gap: 7,
     marginTop: 10,
   },
+  printRunText: {
+    alignSelf: 'flex-start',
+    color: colors.red,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    marginTop: 3,
+  },
   footer: {
     paddingBottom: 18,
     paddingTop: 14,
@@ -1040,6 +1107,17 @@ const styles = StyleSheet.create({
   rowUpdating: {
     opacity: 0.58,
   },
+  rookieBadge: {
+    backgroundColor: colors.red,
+    borderRadius: 3,
+    color: colors.textInverse,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    overflow: 'hidden',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
   screenSubtitle: {
     color: colors.textSoft,
     fontSize: 13,
@@ -1081,9 +1159,16 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   selectedHeader: {
+    alignItems: 'center',
     borderLeftColor: colors.red,
     borderLeftWidth: 4,
+    flexDirection: 'row',
+    gap: 12,
     paddingLeft: 11,
+  },
+  selectedInfo: {
+    flex: 1,
+    minWidth: 0,
   },
   selectedMeta: {
     color: colors.textSoft,
@@ -1105,6 +1190,37 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.9,
     textTransform: 'uppercase',
+  },
+  setCover: {
+    alignItems: 'center',
+    backgroundColor: colors.panelSoft,
+    borderColor: colors.border,
+    borderRadius: 5,
+    borderWidth: 1,
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  setCoverImage: {
+    height: '100%',
+    width: '100%',
+  },
+  setCoverLarge: {
+    height: 64,
+    width: 64,
+  },
+  setCoverPlaceholder: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+  },
+  setCoverPlaceholderText: {
+    color: colors.textInverse,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  setCoverSmall: {
+    height: 52,
+    width: 52,
   },
   setCounts: {
     color: colors.textSoft,

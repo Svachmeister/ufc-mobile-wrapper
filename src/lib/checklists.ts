@@ -3,11 +3,15 @@ import { supabase } from '@/src/lib/supabase';
 
 export type NativeChecklistCard = {
   cardId: string;
+  cardIdLabel: string | null;
   detail: string;
   fighterName: string;
+  isRookie: boolean;
+  printRun: string | null;
   setId: string | null;
   setName: string | null;
   status: string | null;
+  subset: string | null;
 };
 
 export type NativeChecklistSet = {
@@ -61,14 +65,30 @@ function getCardDetail(card: Record<string, unknown> | null) {
   return parts.join(' - ') || 'Base card';
 }
 
+function readBoolean(record: Record<string, unknown> | null, keys: string[]) {
+  if (!record) return false;
+
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') return value.trim().toLowerCase() === 'true';
+  }
+
+  return false;
+}
+
 function normalizeCard(row: Record<string, unknown>, status: string | null = null): NativeChecklistCard {
   return {
     cardId: readString(row, ['id']) || readString(row, ['card_id']) || 'unknown-card',
+    cardIdLabel: readString(row, ['card_id', 'card_number', 'number', 'card_no']),
     detail: getCardDetail(row),
     fighterName: readString(row, ['fighter_name', 'name', 'title']) || 'Unknown fighter',
+    isRookie: readBoolean(row, ['is_rookie', 'isRookie']),
+    printRun: readString(row, ['print_run', 'printRun']),
     setId: getSetId(row),
     setName: null,
     status,
+    subset: readString(row, ['subset']),
   };
 }
 
@@ -188,7 +208,7 @@ export async function loadNativeSetCards({
   const searchTerm = sanitizeCardSearchTerm(searchQuery);
   let query = supabase
     .from('cards')
-    .select('id,set_id,fighter_name,card_number,variation', { count: 'exact' })
+    .select('id,set_id,fighter_name,card_id,card_number,subset,variation,print_run,is_rookie', { count: 'exact' })
     .eq('set_id', setId);
 
   if (searchTerm) {
