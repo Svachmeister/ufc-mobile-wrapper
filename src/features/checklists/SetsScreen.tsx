@@ -7,6 +7,7 @@ import {
   Pressable,
   RefreshControl,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -81,18 +82,59 @@ function formatReleaseDate(value: string | null) {
   }).format(date);
 }
 
+function formatFullReleaseDate(value: string | null) {
+  if (!value) return 'Release TBA';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat('en-US', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
 function formatSetMeta(set: NativeChecklistSet) {
   return [set.year, set.brand, formatReleaseDate(set.releaseDate)]
     .filter(Boolean)
     .join(' / ');
 }
 
-function formatSetCounts(set: NativeChecklistSet) {
-  const total = set.cardCount === null || set.cardCount === undefined
-    ? 'Cards TBA'
-    : `${set.cardCount} cards`;
+function getSetYear(set: NativeChecklistSet) {
+  if (set.year) return set.year;
 
-  return `${total} / ${set.ownedCount} owned / ${set.wantedCount} wanted`;
+  const nameYear = set.name.match(/\b(20\d{2}|19\d{2})\b/);
+  if (nameYear?.[1]) return nameYear[1];
+
+  if (set.releaseDate) {
+    const date = new Date(set.releaseDate);
+    if (!Number.isNaN(date.getTime())) return String(date.getFullYear());
+  }
+
+  return null;
+}
+
+function getReleaseTime(set: NativeChecklistSet) {
+  if (!set.releaseDate) return null;
+  const date = new Date(set.releaseDate);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.getTime();
+}
+
+function sortSetsForBrowser(sets: NativeChecklistSet[]) {
+  return [...sets].sort((a, b) => {
+    const releaseA = getReleaseTime(a);
+    const releaseB = getReleaseTime(b);
+    if (releaseA !== null && releaseB !== null && releaseA !== releaseB) return releaseB - releaseA;
+    if (releaseA !== null && releaseB === null) return -1;
+    if (releaseA === null && releaseB !== null) return 1;
+
+    const yearCompare = String(getSetYear(b) || '').localeCompare(String(getSetYear(a) || ''));
+    if (yearCompare !== 0) return yearCompare;
+
+    return a.name.localeCompare(b.name);
+  });
 }
 
 function getStatusCounts(statuses: Iterable<string | null>) {
@@ -278,6 +320,7 @@ export function SetsScreen() {
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [updatingCardIds, setUpdatingCardIds] = useState<Set<string>>(new Set());
   const [setSearch, setSetSearch] = useState('');
+  const [setYearFilter, setSetYearFilter] = useState('all');
   const [cardSearch, setCardSearch] = useState('');
   const [cardFilter, setCardFilter] = useState<CardFilter>('all');
   const [expandedGroupKeys, setExpandedGroupKeys] = useState<Set<string>>(new Set());
@@ -510,16 +553,27 @@ export function SetsScreen() {
 
   const filteredSets = useMemo(() => {
     const query = normalizeSearch(setSearch);
-    if (!query) return data.sets;
+    const sortedSets = sortSetsForBrowser(data.sets);
 
-    return data.sets.filter((set) => (
-      [set.name, set.brand, set.year, formatReleaseDate(set.releaseDate)]
+    return sortedSets.filter((set) => {
+      const matchesYear = setYearFilter === 'all' || getSetYear(set) === setYearFilter;
+      if (!matchesYear) return false;
+      if (!query) return true;
+
+      return [set.name, set.brand, set.year, formatReleaseDate(set.releaseDate)]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
-        .includes(query)
-    ));
-  }, [data.sets, setSearch]);
+        .includes(query);
+    });
+  }, [data.sets, setSearch, setYearFilter]);
+  const setYearOptions = useMemo(() => {
+    const years = data.sets
+      .map(getSetYear)
+      .filter((year): year is string => Boolean(year));
+
+    return ['all', ...[...new Set(years)].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))];
+  }, [data.sets]);
 
   const groupedCards = useMemo(() => {
     return buildChecklistGroups(selectedCards)
@@ -573,14 +627,19 @@ export function SetsScreen() {
           <>
             <View style={styles.topBar}>
               <View>
+                {!selectedSet ? (
+                  <Pressable onPress={() => router.back()} style={styles.browserBackButton}>
+                    <Text style={styles.browserBackText}>{'< Back'}</Text>
+                  </Pressable>
+                ) : null}
                 <Text style={styles.screenTitle}>{selectedSet ? 'Checklist' : 'Card Sets'}</Text>
                 <Text style={styles.screenSubtitle}>
                   {selectedSet
                     ? 'Mark owned cards and chase list targets.'
-                    : 'Track UFC sets, cards and chase targets.'}
+                    : 'Browse UFC card releases and open your checklist.'}
                 </Text>
               </View>
-              <UtilityWebButton onPress={openWebFallback} />
+              {selectedSet ? <UtilityWebButton onPress={openWebFallback} /> : null}
             </View>
 
             {error ? (
@@ -611,10 +670,12 @@ export function SetsScreen() {
               <SetBrowser
                 filteredSets={filteredSets}
                 onChangeSearch={setSetSearch}
+                onChangeYear={setSetYearFilter}
                 onSelectSet={selectSet}
                 search={setSearch}
                 sets={data.sets}
-                summary={data.summary}
+                year={setYearFilter}
+                yearOptions={setYearOptions}
               />
             )}
           </>
@@ -655,43 +716,58 @@ export function SetsScreen() {
 function SetBrowser({
   filteredSets,
   onChangeSearch,
+  onChangeYear,
   onSelectSet,
   search,
   sets,
-  summary,
+  year,
+  yearOptions,
 }: {
   filteredSets: NativeChecklistSet[];
   onChangeSearch: (value: string) => void;
+  onChangeYear: (value: string) => void;
   onSelectSet: (setId: string) => void;
   search: string;
   sets: NativeChecklistSet[];
-  summary: SetsState['summary'];
+  year: string;
+  yearOptions: string[];
 }) {
   return (
     <View style={styles.section}>
-      <View style={styles.summaryStrip}>
-        <MiniStat label="Sets" value={String(summary.sets)} />
-        <MiniStat label="Owned" value={String(summary.owned)} />
-        <MiniStat label="Wanted" value={String(summary.wanted)} />
-      </View>
-
       <SearchInput
         onChangeText={onChangeSearch}
         placeholder="Search card sets"
         value={search}
       />
 
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.yearFilterScroll}
+      >
+        <View style={styles.yearFilterRow}>
+          {yearOptions.map((option) => (
+            <Pressable
+              key={option}
+              onPress={() => onChangeYear(option)}
+              style={[styles.yearChip, year === option ? styles.yearChipActive : null]}
+            >
+              <Text style={[styles.yearChipText, year === option ? styles.yearChipTextActive : null]}>
+                {option === 'all' ? 'All' : option}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+
       <View style={styles.listHeader}>
-        <Text style={styles.kicker}>Set browser</Text>
-        <Text style={styles.countText}>
-          {filteredSets.length} of {sets.length}
-        </Text>
+        <Text style={styles.kicker}>Releases</Text>
       </View>
 
       {sets.length === 0 ? (
         <EmptyText message="No sets are available in the native catalog yet." />
       ) : filteredSets.length === 0 ? (
-        <EmptyText message="No card sets match this search." />
+        <EmptyText message="No sets match this search or year." />
       ) : (
         <View style={styles.setList}>
           {filteredSets.map((set) => (
@@ -956,19 +1032,27 @@ function SetRow({
       onPress={onPress}
       style={styles.setRow}
     >
-      <SetCover imageUrl={set.imageUrl} size="small" />
-      <View style={styles.setInfo}>
-        <Text numberOfLines={1} style={styles.setTitle}>
+      <View style={styles.setCardBody}>
+        <Text numberOfLines={3} style={styles.setTitle}>
           {set.name}
         </Text>
-        <Text numberOfLines={1} style={styles.setMeta}>
-          {formatSetMeta(set)}
-        </Text>
-        <Text style={styles.setCounts}>
-          {formatSetCounts(set)}
-        </Text>
+        <View style={styles.setTitleAccent} />
+
+        <View style={styles.setMetaBlock}>
+          <Text numberOfLines={1} style={styles.setMeta}>
+            <Text style={styles.setMetaLabel}>Release date: </Text>{formatFullReleaseDate(set.releaseDate)}
+          </Text>
+        </View>
+
+        <SetCover imageUrl={set.imageUrl} size="gallery" />
+
+        <View style={styles.setActionRow}>
+          <View style={styles.setAction}>
+            <Text style={styles.setActionText}>Open checklist</Text>
+            <Text style={styles.setActionArrow}>{'>'}</Text>
+          </View>
+        </View>
       </View>
-      <Text style={styles.setAction}>Open</Text>
     </Pressable>
   );
 }
@@ -986,10 +1070,14 @@ function SetCover({
   size,
 }: {
   imageUrl: string | null;
-  size: 'large' | 'small';
+  size: 'gallery' | 'large' | 'small';
 }) {
   const [failed, setFailed] = useState(false);
-  const style = size === 'large' ? styles.setCoverLarge : styles.setCoverSmall;
+  const style = size === 'large'
+    ? styles.setCoverLarge
+    : size === 'gallery'
+      ? styles.setCoverGallery
+      : styles.setCoverSmall;
 
   if (!imageUrl || failed) {
     return (
@@ -1026,6 +1114,22 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  browserBackButton: {
+    alignSelf: 'flex-start',
+    borderColor: colors.border,
+    borderRadius: 5,
+    borderWidth: 1,
+    marginBottom: 10,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+  },
+  browserBackText: {
+    color: colors.textSoft,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.7,
     textTransform: 'uppercase',
   },
   cardDetail: {
@@ -1387,16 +1491,37 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   setAction: {
-    borderColor: colors.border,
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.ink,
     borderRadius: 4,
     borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 42,
+    paddingHorizontal: 13,
+  },
+  setActionArrow: {
+    color: colors.red,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 16,
+  },
+  setActionText: {
     color: colors.ink,
+    flex: 1,
     fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 0.9,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    letterSpacing: 1,
+    textAlign: 'center',
     textTransform: 'uppercase',
+  },
+  setActionRow: {
+    marginTop: 12,
+  },
+  setCardBody: {
+    flex: 1,
+    minWidth: 0,
   },
   setCover: {
     alignItems: 'center',
@@ -1415,6 +1540,12 @@ const styles = StyleSheet.create({
     height: 66,
     width: 66,
   },
+  setCoverGallery: {
+    alignSelf: 'stretch',
+    aspectRatio: 16 / 9,
+    height: undefined,
+    width: '100%',
+  },
   setCoverPlaceholder: {
     backgroundColor: colors.ink,
     borderColor: colors.ink,
@@ -1429,43 +1560,46 @@ const styles = StyleSheet.create({
     height: 54,
     width: 54,
   },
-  setCounts: {
-    color: colors.textSoft,
-    fontSize: 11,
-    fontWeight: '800',
-    marginTop: 5,
-  },
-  setInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
   setList: {
-    gap: 8,
+    gap: 11,
   },
   setMeta: {
     color: colors.textSoft,
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 16,
+  },
+  setMetaBlock: {
+    gap: 3,
+    marginBottom: 12,
+  },
+  setMetaLabel: {
+    color: colors.ink,
+    fontWeight: '900',
   },
   setRow: {
-    alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 6,
+    borderTopColor: colors.red,
+    borderTopWidth: 2,
     borderWidth: 1,
-    flexDirection: 'row',
-    gap: 11,
-    minHeight: 74,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    minHeight: 0,
+    padding: 12,
   },
   setTitle: {
     color: colors.ink,
-    fontSize: 14,
+    fontSize: 20,
     fontWeight: '900',
-    lineHeight: 18,
+    lineHeight: 23,
     textTransform: 'uppercase',
+  },
+  setTitleAccent: {
+    backgroundColor: colors.red,
+    height: 2,
+    marginBottom: 10,
+    marginTop: 8,
+    width: 44,
   },
   statusButton: {
     alignItems: 'center',
@@ -1525,6 +1659,36 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.7,
     textTransform: 'uppercase',
+  },
+  yearChip: {
+    borderColor: colors.border,
+    borderRadius: 5,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 32,
+    paddingHorizontal: 12,
+  },
+  yearChipActive: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+  },
+  yearChipText: {
+    color: colors.textSoft,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
+  },
+  yearChipTextActive: {
+    color: colors.textInverse,
+  },
+  yearFilterRow: {
+    flexDirection: 'row',
+    gap: 7,
+    paddingRight: 16,
+  },
+  yearFilterScroll: {
+    marginTop: 10,
   },
   variationChip: {
     alignItems: 'center',
