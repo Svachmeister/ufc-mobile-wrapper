@@ -39,6 +39,7 @@ export type NativeChecklistsData = {
 export type NativeChecklistWritableStatus = 'owned' | 'wanted';
 
 export const CHECKLIST_CARD_PAGE_SIZE = 75;
+const CHECKLIST_CARD_SELECT = 'id,set_id,fighter_name,card_id,card_number,subset,variation,print_run,is_rookie';
 const USER_CARD_SET_CHUNK_SIZE = 500;
 
 function readString(record: Record<string, unknown> | null, keys: string[]) {
@@ -227,6 +228,137 @@ export async function loadNativeSetCards({
 
   if (error) {
     console.warn('Native checklist set cards query failed', error.message);
+
+    return {
+      cards: [] as NativeChecklistCard[],
+      error: 'Could not load cards for this set.',
+      hasMore: false,
+      nextFrom: from,
+      totalCount: null as number | null,
+    };
+  }
+
+  const cards = ((data ?? []) as Record<string, unknown>[]).map((row) => {
+    const normalized = normalizeCard(row);
+    return {
+      ...normalized,
+      status: userCardStatuses[normalized.cardId] ?? null,
+    };
+  });
+  const nextFrom = from + cards.length;
+  const hasMore = typeof count === 'number'
+    ? nextFrom < count
+    : cards.length === pageSize;
+
+  return {
+    cards,
+    error: null,
+    hasMore,
+    nextFrom,
+    totalCount: count ?? null,
+  };
+}
+
+export async function loadNativeSetCardsByFighter({
+  fighterSearch,
+  from = 0,
+  pageSize = CHECKLIST_CARD_PAGE_SIZE,
+  setId,
+  userCardStatuses,
+}: {
+  fighterSearch: string;
+  from?: number;
+  pageSize?: number;
+  setId: string;
+  userCardStatuses: Record<string, string | null>;
+}) {
+  const searchTerm = sanitizeCardSearchTerm(fighterSearch);
+
+  if (!searchTerm) {
+    return emptySetCardsResult(from);
+  }
+
+  const pattern = `%${searchTerm}%`;
+  const query = createScopedSetCardsQuery(setId)
+    .ilike('fighter_name', pattern);
+
+  return loadSetCardsFromQuery({
+    from,
+    pageSize,
+    query,
+    userCardStatuses,
+    warning: 'Native checklist fighter cards query failed',
+  });
+}
+
+export async function loadNativeSetCardsBySubset({
+  from = 0,
+  pageSize = CHECKLIST_CARD_PAGE_SIZE,
+  setId,
+  subset,
+  userCardStatuses,
+}: {
+  from?: number;
+  pageSize?: number;
+  setId: string;
+  subset: string;
+  userCardStatuses: Record<string, string | null>;
+}) {
+  const subsetTerm = subset.trim();
+
+  if (!subsetTerm) {
+    return emptySetCardsResult(from);
+  }
+
+  const query = createScopedSetCardsQuery(setId)
+    .eq('subset', subsetTerm);
+
+  return loadSetCardsFromQuery({
+    from,
+    pageSize,
+    query,
+    userCardStatuses,
+    warning: 'Native checklist subset cards query failed',
+  });
+}
+
+function emptySetCardsResult(from: number) {
+  return {
+    cards: [] as NativeChecklistCard[],
+    error: null,
+    hasMore: false,
+    nextFrom: from,
+    totalCount: 0,
+  };
+}
+
+function createScopedSetCardsQuery(setId: string) {
+  return supabase
+    .from('cards')
+    .select(CHECKLIST_CARD_SELECT, { count: 'exact' })
+    .eq('set_id', setId);
+}
+
+async function loadSetCardsFromQuery({
+  from,
+  pageSize,
+  query,
+  userCardStatuses,
+  warning,
+}: {
+  from: number;
+  pageSize: number;
+  query: ReturnType<typeof createScopedSetCardsQuery>;
+  userCardStatuses: Record<string, string | null>;
+  warning: string;
+}) {
+  const { count, data, error } = await query
+    .order('card_number', { ascending: true })
+    .order('fighter_name', { ascending: true })
+    .range(from, from + pageSize - 1);
+
+  if (error) {
+    console.warn(warning, error.message);
 
     return {
       cards: [] as NativeChecklistCard[],
