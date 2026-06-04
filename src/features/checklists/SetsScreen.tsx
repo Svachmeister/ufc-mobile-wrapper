@@ -313,13 +313,15 @@ export function SetsScreen() {
   );
 }
 
+const CHECKLIST_SECTIONS = ['Base Set', 'Autographs', 'Memorabilia', 'Inserts', 'Parallels / Other'];
+
 function ChecklistHome({
-  detailError,
+  detailError: _detailError,
   fighterSearch,
-  isDetailLoading,
+  isDetailLoading: _isDetailLoading,
   onBack,
   onChangeFighterSearch,
-  selectedCards,
+  selectedCards: _selectedCards,
   selectedSet,
 }: {
   detailError: string | null;
@@ -330,27 +332,12 @@ function ChecklistHome({
   selectedCards: NativeChecklistCard[];
   selectedSet: NativeChecklistSet;
 }) {
-  const subsets = useMemo(() => {
-    const seen = new Set<string>();
-    const result: string[] = [];
-
-    for (const card of selectedCards) {
-      const key = card.subset ?? 'Base Set';
-      if (!seen.has(key)) {
-        seen.add(key);
-        result.push(key);
-      }
-    }
-
-    return result.sort();
-  }, [selectedCards]);
-
   return (
     <ScrollView contentContainerStyle={styles.scrollContent}>
       <View style={styles.topBar}>
         <View>
-          <Pressable onPress={onBack} style={styles.backButton}>
-            <Text style={styles.backButtonText}>All sets</Text>
+          <Pressable onPress={onBack} style={styles.homeBackLink}>
+            <Text style={styles.homeBackLinkText}>{'< Back'}</Text>
           </Pressable>
           <Text style={styles.screenTitle}>Checklist</Text>
         </View>
@@ -362,32 +349,39 @@ function ChecklistHome({
         <Text numberOfLines={3} style={styles.homeSetTitle}>{selectedSet.name}</Text>
         <Text style={styles.selectedMeta}>{formatFullReleaseDate(selectedSet.releaseDate)}</Text>
 
-        <SearchInput
-          onChangeText={onChangeFighterSearch}
-          placeholder="Search fighters"
-          value={fighterSearch}
-        />
-
-        <View style={styles.listHeader}>
-          <Text style={styles.kicker}>Subsets</Text>
+        <View style={styles.homeSearchWrap}>
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            onChangeText={onChangeFighterSearch}
+            placeholder="Search fighters"
+            placeholderTextColor={colors.gray500}
+            returnKeyType="search"
+            style={styles.searchInput}
+            value={fighterSearch}
+          />
+          {fighterSearch ? (
+            <Pressable onPress={() => onChangeFighterSearch('')} style={styles.clearSearchButton}>
+              <Text style={styles.clearSearchText}>Clear</Text>
+            </Pressable>
+          ) : null}
         </View>
 
-        {detailError ? (
-          <Text style={styles.errorText}>{detailError}</Text>
-        ) : isDetailLoading && subsets.length === 0 ? (
-          <Text style={styles.helperText}>Loading subsets...</Text>
-        ) : subsets.length === 0 ? (
-          <EmptyText message="No subsets found for this set." />
-        ) : (
-          <View style={styles.setList}>
-            {subsets.map((subset) => (
-              <Pressable key={subset} style={styles.setAction}>
-                <Text style={styles.setActionText}>{subset}</Text>
+        <View style={styles.listHeader}>
+          <Text style={styles.kicker}>Checklist Sections</Text>
+        </View>
+
+        <View style={styles.sectionList}>
+          {CHECKLIST_SECTIONS.map((section, index) => (
+            <View key={section}>
+              {index > 0 && <View style={styles.sectionSeparator} />}
+              <Pressable style={styles.sectionRow}>
+                <Text style={styles.sectionRowText}>{section}</Text>
                 <Text style={styles.setActionArrow}>{'>'}</Text>
               </Pressable>
-            ))}
-          </View>
-        )}
+            </View>
+          ))}
+        </View>
       </View>
     </ScrollView>
   );
@@ -573,21 +567,48 @@ function SetCover({
 }
 
 const styles = StyleSheet.create({
-  backButton: {
+  homeBackLink: {
     alignSelf: 'flex-start',
-    borderColor: colors.border,
-    borderRadius: 5,
-    borderWidth: 1,
     marginBottom: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingVertical: 4,
   },
-  backButtonText: {
+  homeBackLinkText: {
     color: colors.textSoft,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  homeSearchWrap: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: '#e5e5e5',
+    borderRadius: 6,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 13,
+    paddingHorizontal: 12,
+  },
+  sectionList: {
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  sectionRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  sectionRowText: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  sectionSeparator: {
+    backgroundColor: colors.border,
+    height: 1,
   },
   browserBackButton: {
     alignSelf: 'flex-start',

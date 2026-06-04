@@ -5,7 +5,9 @@
       "Bash(npx tsc *)",
       "Bash(npx expo *)",
       "Bash(echo \"LINT_EXIT:$?\")",
-      "Bash(echo \"TSC_EXIT:$?\")"
+      "Bash(echo \"TSC_EXIT:$?\")",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(git add *)"
     ]
   }
 }
