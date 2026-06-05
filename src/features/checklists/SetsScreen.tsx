@@ -499,6 +499,14 @@ function ChecklistHome({
   subsetError: string | null;
   subsets: NativeChecklistSubset[];
 }) {
+  const [sectionSearch, setSectionSearch] = useState('');
+  const visibleSubsets = useMemo(() => {
+    const query = normalizeSearch(sectionSearch);
+    if (!query) return subsets;
+
+    return subsets.filter((subset) => subset.name.toLowerCase().includes(query));
+  }, [sectionSearch, subsets]);
+
   return (
     <ScrollView contentContainerStyle={styles.scrollContent}>
       <View style={styles.topBar}>
@@ -511,13 +519,32 @@ function ChecklistHome({
       </View>
 
       <View style={styles.section}>
-        <SetCover imageUrl={selectedSet.imageUrl} size="gallery" />
+        <View style={styles.homeSetCard}>
+          <SetCover imageUrl={selectedSet.imageUrl} size="gallery" />
+          <View style={styles.homeSetCardBody}>
+            <Text style={styles.homeSetEyebrow}>Selected release</Text>
+            <Text numberOfLines={3} style={styles.homeSetTitle}>{selectedSet.name}</Text>
+            <Text style={styles.selectedMeta}>{formatFullReleaseDate(selectedSet.releaseDate)}</Text>
+          </View>
+        </View>
 
-        <Text numberOfLines={3} style={styles.homeSetTitle}>{selectedSet.name}</Text>
-        <Text style={styles.selectedMeta}>{formatFullReleaseDate(selectedSet.releaseDate)}</Text>
+        <View style={styles.finderPanel}>
+          <Text style={styles.finderTitle}>Find a fighter</Text>
+          <Text style={styles.finderCopy}>
+            Choose the checklist section your card belongs to, then scan fighter rows in the matrix.
+          </Text>
+          <SearchInput
+            onChangeText={setSectionSearch}
+            placeholder="Search checklist sections"
+            value={sectionSearch}
+          />
+        </View>
 
         <View style={styles.listHeader}>
           <Text style={styles.kicker}>Checklist Sections</Text>
+          {subsets.length > 0 ? (
+            <Text style={styles.sectionCount}>{subsets.length} sections</Text>
+          ) : null}
         </View>
 
         {isSubsetLoading ? (
@@ -526,9 +553,11 @@ function ChecklistHome({
           <EmptyText message={subsetError} />
         ) : subsets.length === 0 ? (
           <EmptyText message="No checklist sections found for this set." />
+        ) : visibleSubsets.length === 0 ? (
+          <EmptyText message="No sections match this search." />
         ) : (
           <View style={styles.sectionList}>
-            {subsets.map((subset, index) => (
+            {visibleSubsets.map((subset, index) => (
               <View key={subset.name}>
                 {index > 0 && <View style={styles.sectionSeparator} />}
                 <Pressable
@@ -541,7 +570,10 @@ function ChecklistHome({
                       {subset.cardIdentityCount} cards · {subset.variantCount} variants
                     </Text>
                   </View>
-                  <Text style={styles.setActionArrow}>{'>'}</Text>
+                  <View style={styles.openPill}>
+                    <Text style={styles.openPillText}>Open</Text>
+                    <Text style={styles.openPillArrow}>{'>'}</Text>
+                  </View>
                 </Pressable>
               </View>
             ))}
@@ -753,18 +785,71 @@ const styles = StyleSheet.create({
     marginTop: 13,
     paddingHorizontal: 12,
   },
+  homeSetCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 6,
+    borderTopColor: colors.ink,
+    borderTopWidth: 3,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  homeSetCardBody: {
+    paddingBottom: 12,
+    paddingHorizontal: 12,
+    paddingTop: 11,
+  },
+  homeSetEyebrow: {
+    color: colors.red,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  finderCopy: {
+    color: colors.textSoft,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+    marginTop: 4,
+  },
+  finderPanel: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderLeftColor: colors.red,
+    borderLeftWidth: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    marginTop: 12,
+    padding: 12,
+  },
+  finderTitle: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
   sectionList: {
     borderColor: colors.border,
     borderRadius: 6,
     borderWidth: 1,
     overflow: 'hidden',
   },
+  sectionCount: {
+    color: colors.textSoft,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
+  },
   sectionRow: {
     alignItems: 'center',
+    backgroundColor: colors.surface,
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingVertical: 13,
   },
   sectionRowCopy: {
     flex: 1,
@@ -780,12 +865,36 @@ const styles = StyleSheet.create({
   },
   sectionRowText: {
     color: colors.ink,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.1,
+    textTransform: 'uppercase',
   },
   sectionSeparator: {
     backgroundColor: colors.border,
     height: 1,
+  },
+  openPill: {
+    alignItems: 'center',
+    backgroundColor: colors.ink,
+    borderRadius: 4,
+    flexDirection: 'row',
+    gap: 5,
+    minHeight: 30,
+    paddingHorizontal: 9,
+  },
+  openPillArrow: {
+    color: colors.red,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 14,
+  },
+  openPillText: {
+    color: colors.textInverse,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   browserBackButton: {
     alignSelf: 'flex-start',
