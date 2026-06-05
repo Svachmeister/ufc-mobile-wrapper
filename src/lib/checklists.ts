@@ -224,6 +224,9 @@ export async function loadNativeSetCards({
   const { count, data, error } = await query
     .order('card_number', { ascending: true })
     .order('fighter_name', { ascending: true })
+    .order('variation', { ascending: true })
+    .order('print_run', { ascending: false })
+    .order('id', { ascending: true })
     .range(from, from + pageSize - 1);
 
   if (error) {
@@ -355,6 +358,9 @@ async function loadSetCardsFromQuery({
   const { count, data, error } = await query
     .order('card_number', { ascending: true })
     .order('fighter_name', { ascending: true })
+    .order('variation', { ascending: true })
+    .order('print_run', { ascending: false })
+    .order('id', { ascending: true })
     .range(from, from + pageSize - 1);
 
   if (error) {
