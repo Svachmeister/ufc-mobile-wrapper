@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  BackHandler,
   Image,
   Pressable,
   RefreshControl,
@@ -21,7 +22,10 @@ import {
   type NativeChecklistSet,
   loadNativeChecklists,
   loadNativeSetCards,
+  loadNativeSetCardsBySubset,
 } from '@/src/lib/checklists';
+import { buildChecklistMatrixData } from './checklistMatrixMapper';
+import SectionChecklistMatrix from './SectionChecklistMatrix';
 import { colors } from '@/src/lib/theme/tokens';
 
 type SetsState = {
@@ -125,6 +129,9 @@ export function SetsScreen() {
   const [setSearch, setSetSearch] = useState('');
   const [setYearFilter, setSetYearFilter] = useState('all');
   const [fighterSearch, setFighterSearch] = useState('');
+  const [selectedSection, setSelectedSection] = useState<string | null>(null);
+  const [matrixCards, setMatrixCards] = useState<NativeChecklistCard[]>([]);
+  const [isMatrixLoading, setIsMatrixLoading] = useState(false);
 
   useEffect(() => {
     userCardStatusesRef.current = data.userCardStatuses;
@@ -213,12 +220,63 @@ export function SetsScreen() {
     setSelectedSetId(null);
     setSelectedCards([]);
     setDetailError(null);
+    setSelectedSection(null);
+    setMatrixCards([]);
   }, []);
+
+  const loadMatrixCards = useCallback(async ({ setId, subset }: { setId: string; subset: string }) => {
+    setIsMatrixLoading(true);
+    setMatrixCards([]);
+
+    const result = await loadNativeSetCardsBySubset({
+      setId,
+      subset,
+      userCardStatuses: userCardStatusesRef.current,
+    });
+
+    if (!result.error) {
+      setMatrixCards(result.cards);
+    }
+    setIsMatrixLoading(false);
+  }, []);
+
+  const handleSectionPress = useCallback((section: string) => {
+    if (section !== 'Base Set') return;
+    setSelectedSection(section);
+  }, []);
+
+  const goBackFromMatrix = useCallback(() => {
+    setSelectedSection(null);
+    setMatrixCards([]);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedSetId || !selectedSection) return;
+    loadMatrixCards({ setId: selectedSetId, subset: selectedSection });
+  }, [loadMatrixCards, selectedSection, selectedSetId]);
+
+  useEffect(() => {
+    if (!selectedSection) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      goBackFromMatrix();
+      return true;
+    });
+    return () => sub.remove();
+  }, [goBackFromMatrix, selectedSection]);
 
   const selectedSet = useMemo(
     () => data.sets.find((set) => set.id === selectedSetId) ?? null,
     [data.sets, selectedSetId],
   );
+
+  const matrixData = useMemo(() => {
+    if (!selectedSection || !selectedSet) return null;
+    return buildChecklistMatrixData({
+      cards: matrixCards,
+      sectionName: selectedSection,
+      setName: selectedSet.name,
+    });
+  }, [matrixCards, selectedSection, selectedSet]);
 
   const filteredSets = useMemo(() => {
     const query = normalizeSearch(setSearch);
@@ -247,6 +305,25 @@ export function SetsScreen() {
 
   if (isLoading) return <LoadingScreen label="Loading sets" />;
 
+  if (selectedSet && selectedSection) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style="dark" />
+        {isMatrixLoading || !matrixData ? (
+          <LoadingScreen label="Loading section" />
+        ) : (
+          <SectionChecklistMatrix
+            columns={matrixData.columns}
+            meta={matrixData.meta}
+            rows={matrixData.rows}
+            sectionName={matrixData.sectionName}
+            setName={matrixData.setName}
+          />
+        )}
+      </View>
+    );
+  }
+
   if (selectedSet) {
     return (
       <SafeAreaView style={styles.container}>
@@ -257,6 +334,7 @@ export function SetsScreen() {
           isDetailLoading={isDetailLoading}
           onBack={goBackToSets}
           onChangeFighterSearch={setFighterSearch}
+          onSectionPress={handleSectionPress}
           selectedCards={selectedCards}
           selectedSet={selectedSet}
         />
@@ -321,6 +399,7 @@ function ChecklistHome({
   isDetailLoading: _isDetailLoading,
   onBack,
   onChangeFighterSearch,
+  onSectionPress,
   selectedCards: _selectedCards,
   selectedSet,
 }: {
@@ -329,6 +408,7 @@ function ChecklistHome({
   isDetailLoading: boolean;
   onBack: () => void;
   onChangeFighterSearch: (value: string) => void;
+  onSectionPress: (section: string) => void;
   selectedCards: NativeChecklistCard[];
   selectedSet: NativeChecklistSet;
 }) {
@@ -375,7 +455,10 @@ function ChecklistHome({
           {CHECKLIST_SECTIONS.map((section, index) => (
             <View key={section}>
               {index > 0 && <View style={styles.sectionSeparator} />}
-              <Pressable style={styles.sectionRow}>
+              <Pressable
+                onPress={section === 'Base Set' ? () => onSectionPress(section) : undefined}
+                style={styles.sectionRow}
+              >
                 <Text style={styles.sectionRowText}>{section}</Text>
                 <Text style={styles.setActionArrow}>{'>'}</Text>
               </Pressable>

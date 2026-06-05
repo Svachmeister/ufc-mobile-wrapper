@@ -128,14 +128,10 @@ export function createMatrixColumnLabel(card: NativeChecklistCard) {
 }
 
 export function createMatrixRowKey(card: NativeChecklistCard) {
-  const identity = card.cardId && card.cardId !== 'unknown-card'
-    ? card.cardId
-    : getCardCode(card);
-
   return [
     card.setId || 'unknown-set',
     card.subset || 'unknown-subset',
-    identity,
+    getCardCode(card),
     card.fighterName || 'Unknown fighter',
   ].map((part) => normalizeKeyPart(part)).join('::');
 }
