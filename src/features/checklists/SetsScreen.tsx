@@ -18,11 +18,14 @@ import { sharedScreenStyles } from '@/src/components/ui/NativePrimitives';
 import { LoadingScreen, ScreenState } from '@/src/components/ui/ScreenState';
 import { useAuth } from '@/src/features/auth/AuthProvider';
 import {
+  CHECKLIST_CARD_PAGE_SIZE,
   type NativeChecklistCard,
   type NativeChecklistSet,
+  getNextChecklistStatus,
   loadNativeChecklists,
   loadNativeSetCards,
   loadNativeSetCardsBySubset,
+  saveNativeChecklistStatus,
 } from '@/src/lib/checklists';
 import { buildChecklistMatrixData } from './checklistMatrixMapper';
 import SectionChecklistMatrix from './SectionChecklistMatrix';
@@ -117,6 +120,7 @@ function normalizeSearch(value: string) {
 export function SetsScreen() {
   const { user } = useAuth();
   const detailRequestRef = useRef(0);
+  const matrixRequestRef = useRef(0);
   const userCardStatusesRef = useRef<Record<string, string | null>>({});
   const [data, setData] = useState<SetsState>(emptyState);
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
@@ -131,7 +135,9 @@ export function SetsScreen() {
   const [fighterSearch, setFighterSearch] = useState('');
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [matrixCards, setMatrixCards] = useState<NativeChecklistCard[]>([]);
+  const [matrixError, setMatrixError] = useState<string | null>(null);
   const [isMatrixLoading, setIsMatrixLoading] = useState(false);
+  const [updatingCardIds, setUpdatingCardIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     userCardStatusesRef.current = data.userCardStatuses;
@@ -222,21 +228,48 @@ export function SetsScreen() {
     setDetailError(null);
     setSelectedSection(null);
     setMatrixCards([]);
+    setMatrixError(null);
   }, []);
 
   const loadMatrixCards = useCallback(async ({ setId, subset }: { setId: string; subset: string }) => {
+    const requestId = matrixRequestRef.current + 1;
+    matrixRequestRef.current = requestId;
+
     setIsMatrixLoading(true);
+    setMatrixError(null);
     setMatrixCards([]);
 
-    const result = await loadNativeSetCardsBySubset({
-      setId,
-      subset,
-      userCardStatuses: userCardStatusesRef.current,
-    });
+    const cardsById = new Map<string, NativeChecklistCard>();
+    let from = 0;
+    let hasMore = true;
 
-    if (!result.error) {
-      setMatrixCards(result.cards);
+    while (hasMore) {
+      const result = await loadNativeSetCardsBySubset({
+        from,
+        pageSize: CHECKLIST_CARD_PAGE_SIZE,
+        setId,
+        subset,
+        userCardStatuses: userCardStatusesRef.current,
+      });
+
+      if (matrixRequestRef.current !== requestId) return;
+
+      if (result.error) {
+        setMatrixError(result.error);
+        setMatrixCards([]);
+        setIsMatrixLoading(false);
+        return;
+      }
+
+      result.cards.forEach((card) => {
+        if (card.cardId && card.cardId !== 'unknown-card') cardsById.set(card.cardId, card);
+      });
+
+      from = result.nextFrom;
+      hasMore = result.hasMore;
     }
+
+    setMatrixCards([...cardsById.values()]);
     setIsMatrixLoading(false);
   }, []);
 
@@ -248,6 +281,7 @@ export function SetsScreen() {
   const goBackFromMatrix = useCallback(() => {
     setSelectedSection(null);
     setMatrixCards([]);
+    setMatrixError(null);
   }, []);
 
   useEffect(() => {
@@ -256,13 +290,17 @@ export function SetsScreen() {
   }, [loadMatrixCards, selectedSection, selectedSetId]);
 
   useEffect(() => {
-    if (!selectedSection) return;
+    if (!selectedSetId) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      goBackFromMatrix();
+      if (selectedSection) {
+        goBackFromMatrix();
+      } else {
+        goBackToSets();
+      }
       return true;
     });
     return () => sub.remove();
-  }, [goBackFromMatrix, selectedSection]);
+  }, [goBackFromMatrix, goBackToSets, selectedSection, selectedSetId]);
 
   const selectedSet = useMemo(
     () => data.sets.find((set) => set.id === selectedSetId) ?? null,
@@ -277,6 +315,66 @@ export function SetsScreen() {
       setName: selectedSet.name,
     });
   }, [matrixCards, selectedSection, selectedSet]);
+
+  const handleMatrixCellPress = useCallback(async (
+    rowKey: string,
+    columnKey: string,
+    currentStatus: string | null,
+  ) => {
+    if (!user?.id || !matrixData) return;
+
+    const cellCard = matrixData.cellCards[`${rowKey}::${columnKey}`];
+    if (!cellCard || updatingCardIds[cellCard.cardId]) return;
+
+    const previousStatus = cellCard.status;
+    const nextStatus = getNextChecklistStatus(currentStatus);
+
+    setUpdatingCardIds(current => ({ ...current, [cellCard.cardId]: true }));
+    setMatrixCards(current => current.map(card => (
+      card.cardId === cellCard.cardId ? { ...card, status: nextStatus } : card
+    )));
+    setData(current => ({
+      ...current,
+      userCardStatuses: {
+        ...current.userCardStatuses,
+        [cellCard.cardId]: nextStatus,
+      },
+    }));
+    userCardStatusesRef.current = {
+      ...userCardStatusesRef.current,
+      [cellCard.cardId]: nextStatus,
+    };
+
+    const result = await saveNativeChecklistStatus({
+      cardId: cellCard.cardId,
+      status: nextStatus,
+      userId: user.id,
+    });
+
+    if (result.error) {
+      setMatrixCards(current => current.map(card => (
+        card.cardId === cellCard.cardId ? { ...card, status: previousStatus } : card
+      )));
+      setData(current => ({
+        ...current,
+        userCardStatuses: {
+          ...current.userCardStatuses,
+          [cellCard.cardId]: previousStatus,
+        },
+      }));
+      userCardStatusesRef.current = {
+        ...userCardStatusesRef.current,
+        [cellCard.cardId]: previousStatus,
+      };
+      setMatrixError(result.error);
+    }
+
+    setUpdatingCardIds(current => {
+      const next = { ...current };
+      delete next[cellCard.cardId];
+      return next;
+    });
+  }, [matrixData, updatingCardIds, user?.id]);
 
   const filteredSets = useMemo(() => {
     const query = normalizeSearch(setSearch);
@@ -311,10 +409,19 @@ export function SetsScreen() {
         <StatusBar style="dark" />
         {isMatrixLoading || !matrixData ? (
           <LoadingScreen label="Loading section" />
+        ) : matrixError ? (
+          <ScreenState
+            actionLabel="Try again"
+            message={matrixError}
+            onAction={() => loadMatrixCards({ setId: selectedSet.id, subset: selectedSection })}
+            title="Section unavailable"
+          />
         ) : (
           <SectionChecklistMatrix
             columns={matrixData.columns}
             meta={matrixData.meta}
+            onBack={goBackFromMatrix}
+            onCellPress={handleMatrixCellPress}
             rows={matrixData.rows}
             sectionName={matrixData.sectionName}
             setName={matrixData.setName}

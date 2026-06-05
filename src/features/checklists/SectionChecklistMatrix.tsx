@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 const FIGHTER_COLUMN_WIDTH = 102;
-const MATRIX_COLUMN_WIDTH = 40;
+const MATRIX_COLUMN_WIDTH = 58;
 const MATRIX_ROW_HEIGHT = 56;
 const STATUS_TOUCH_SIZE = 38;
 const STATUS_ICON_SIZE = 22;
@@ -25,6 +25,7 @@ export type SectionChecklistRow = {
 export type SectionChecklistMatrixProps = {
   columns: SectionChecklistColumn[];
   meta: string;
+  onBack?: () => void;
   onCellPress?: (
     rowKey: string,
     columnKey: string,
@@ -38,6 +39,7 @@ export type SectionChecklistMatrixProps = {
 export default function SectionChecklistMatrix({
   columns,
   meta,
+  onBack,
   onCellPress,
   rows,
   sectionName,
@@ -46,7 +48,9 @@ export default function SectionChecklistMatrix({
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.backText}>{'\u2039 BACK'}</Text>
+        <Pressable onPress={onBack} style={styles.backButton}>
+          <Text style={styles.backText}>{'\u2039 BACK'}</Text>
+        </Pressable>
 
         <View style={styles.header}>
           <Text style={styles.title}>Checklist</Text>
@@ -83,9 +87,7 @@ export default function SectionChecklistMatrix({
                 <View style={styles.matrixHeaderTrack}>
                   {columns.map((column) => (
                     <View key={column.key} style={styles.columnHeaderCell}>
-                      <Text numberOfLines={1} style={styles.columnHeaderText}>
-                        {column.label}
-                      </Text>
+                      <ColumnHeaderLabel label={column.label} />
                     </View>
                   ))}
                 </View>
@@ -118,6 +120,23 @@ export default function SectionChecklistMatrix({
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function ColumnHeaderLabel({ label }: { label: string }) {
+  const [name, printRun] = label.split(/\s+(\/.+)$/);
+
+  return (
+    <View style={styles.columnHeaderLabel}>
+      <Text numberOfLines={2} style={styles.columnHeaderName}>
+        {name}
+      </Text>
+      {printRun ? (
+        <Text numberOfLines={1} style={styles.columnHeaderPrintRun}>
+          {printRun}
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
@@ -161,6 +180,11 @@ function StatusMarker({
 }
 
 const styles = StyleSheet.create({
+  backButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 7,
+    paddingRight: 12,
+  },
   backText: {
     alignSelf: 'flex-start',
     color: '#4f4f49',
@@ -185,16 +209,31 @@ const styles = StyleSheet.create({
   },
   columnHeaderCell: {
     alignItems: 'center',
-    height: 44,
+    height: 54,
     justifyContent: 'center',
     width: MATRIX_COLUMN_WIDTH,
   },
-  columnHeaderText: {
+  columnHeaderLabel: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  columnHeaderName: {
     color: '#4f4f49',
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '900',
-    letterSpacing: 0.2,
-    lineHeight: 11,
+    letterSpacing: 0.1,
+    lineHeight: 9,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  },
+  columnHeaderPrintRun: {
+    color: '#e10600',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.1,
+    lineHeight: 10,
+    marginTop: 2,
     textAlign: 'center',
     textTransform: 'uppercase',
   },
@@ -217,7 +256,7 @@ const styles = StyleSheet.create({
   },
   fighterHeaderCell: {
     backgroundColor: '#f7f7f3',
-    height: 44,
+    height: 54,
     justifyContent: 'flex-end',
     paddingBottom: 8,
     paddingHorizontal: 9,
@@ -284,7 +323,7 @@ const styles = StyleSheet.create({
   matrixHeaderTrack: {
     backgroundColor: '#f7f7f3',
     flexDirection: 'row',
-    height: 44,
+    height: 54,
   },
   matrixRowTrack: {
     borderTopColor: '#eeeeea',

@@ -199,7 +199,7 @@ export function buildChecklistMatrixData({
   return {
     cellCards,
     columns,
-    meta: `${rows.length} fighters · ${cards.length} cards · ${columns.length} parallels`,
+    meta: `${rows.length} cards · ${cards.length} variants · ${columns.length} parallels`,
     rows,
     sectionName,
     setName,
