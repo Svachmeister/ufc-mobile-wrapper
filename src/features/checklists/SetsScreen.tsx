@@ -21,10 +21,11 @@ import {
   CHECKLIST_CARD_PAGE_SIZE,
   type NativeChecklistCard,
   type NativeChecklistSet,
+  type NativeChecklistSubset,
   getNextChecklistStatus,
   loadNativeChecklists,
-  loadNativeSetCards,
   loadNativeSetCardsBySubset,
+  loadNativeSetSubsets,
   saveNativeChecklistStatus,
 } from '@/src/lib/checklists';
 import { buildChecklistMatrixData } from './checklistMatrixMapper';
@@ -119,20 +120,19 @@ function normalizeSearch(value: string) {
 
 export function SetsScreen() {
   const { user } = useAuth();
-  const detailRequestRef = useRef(0);
+  const subsetRequestRef = useRef(0);
   const matrixRequestRef = useRef(0);
   const userCardStatusesRef = useRef<Record<string, string | null>>({});
   const [data, setData] = useState<SetsState>(emptyState);
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
-  const [selectedCards, setSelectedCards] = useState<NativeChecklistCard[]>([]);
-  const [isDetailLoading, setIsDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState<string | null>(null);
+  const [selectedSubsets, setSelectedSubsets] = useState<NativeChecklistSubset[]>([]);
+  const [isSubsetLoading, setIsSubsetLoading] = useState(false);
+  const [subsetError, setSubsetError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [setSearch, setSetSearch] = useState('');
   const [setYearFilter, setSetYearFilter] = useState('all');
-  const [fighterSearch, setFighterSearch] = useState('');
   const [selectedSection, setSelectedSection] = useState<string | null>(null);
   const [matrixCards, setMatrixCards] = useState<NativeChecklistCard[]>([]);
   const [matrixError, setMatrixError] = useState<string | null>(null);
@@ -156,34 +156,24 @@ export function SetsScreen() {
     });
   }, [user?.id]);
 
-  const loadSetCardsPage = useCallback(async ({ setId }: { setId: string }) => {
-    const requestId = detailRequestRef.current + 1;
-    detailRequestRef.current = requestId;
+  const loadSetSubsets = useCallback(async ({ setId }: { setId: string }) => {
+    const requestId = subsetRequestRef.current + 1;
+    subsetRequestRef.current = requestId;
 
-    setIsDetailLoading(true);
-    setDetailError(null);
-    setSelectedCards([]);
+    setIsSubsetLoading(true);
+    setSubsetError(null);
+    setSelectedSubsets([]);
 
-    const result = await loadNativeSetCards({
-      from: 0,
-      searchQuery: '',
-      setId,
-      userCardStatuses: userCardStatusesRef.current,
-    });
+    const result = await loadNativeSetSubsets({ setId });
 
-    if (detailRequestRef.current !== requestId) {
-      setIsDetailLoading(false);
+    if (subsetRequestRef.current !== requestId) {
+      setIsSubsetLoading(false);
       return;
     }
 
-    if (result.error) {
-      setDetailError(result.error);
-    } else {
-      setDetailError(null);
-      setSelectedCards(result.cards);
-    }
-
-    setIsDetailLoading(false);
+    setSubsetError(result.error);
+    setSelectedSubsets(result.subsets);
+    setIsSubsetLoading(false);
   }, []);
 
   useEffect(() => {
@@ -203,14 +193,13 @@ export function SetsScreen() {
 
   useEffect(() => {
     if (!selectedSetId) {
-      setSelectedCards([]);
-      setDetailError(null);
-      setFighterSearch('');
+      setSelectedSubsets([]);
+      setSubsetError(null);
       return;
     }
 
-    loadSetCardsPage({ setId: selectedSetId });
-  }, [loadSetCardsPage, selectedSetId]);
+    loadSetSubsets({ setId: selectedSetId });
+  }, [loadSetSubsets, selectedSetId]);
 
   const refresh = async () => {
     setIsRefreshing(true);
@@ -224,8 +213,8 @@ export function SetsScreen() {
 
   const goBackToSets = useCallback(() => {
     setSelectedSetId(null);
-    setSelectedCards([]);
-    setDetailError(null);
+    setSelectedSubsets([]);
+    setSubsetError(null);
     setSelectedSection(null);
     setMatrixCards([]);
     setMatrixError(null);
@@ -274,7 +263,6 @@ export function SetsScreen() {
   }, []);
 
   const handleSectionPress = useCallback((section: string) => {
-    if (section !== 'Base Set') return;
     setSelectedSection(section);
   }, []);
 
@@ -436,14 +424,12 @@ export function SetsScreen() {
       <SafeAreaView style={styles.container}>
         <StatusBar style="dark" />
         <ChecklistHome
-          detailError={detailError}
-          fighterSearch={fighterSearch}
-          isDetailLoading={isDetailLoading}
+          isSubsetLoading={isSubsetLoading}
           onBack={goBackToSets}
-          onChangeFighterSearch={setFighterSearch}
           onSectionPress={handleSectionPress}
-          selectedCards={selectedCards}
           selectedSet={selectedSet}
+          subsetError={subsetError}
+          subsets={selectedSubsets}
         />
       </SafeAreaView>
     );
@@ -498,26 +484,20 @@ export function SetsScreen() {
   );
 }
 
-const CHECKLIST_SECTIONS = ['Base Set', 'Autographs', 'Memorabilia', 'Inserts', 'Parallels / Other'];
-
 function ChecklistHome({
-  detailError: _detailError,
-  fighterSearch,
-  isDetailLoading: _isDetailLoading,
+  isSubsetLoading,
   onBack,
-  onChangeFighterSearch,
   onSectionPress,
-  selectedCards: _selectedCards,
   selectedSet,
+  subsetError,
+  subsets,
 }: {
-  detailError: string | null;
-  fighterSearch: string;
-  isDetailLoading: boolean;
   onBack: () => void;
-  onChangeFighterSearch: (value: string) => void;
   onSectionPress: (section: string) => void;
-  selectedCards: NativeChecklistCard[];
   selectedSet: NativeChecklistSet;
+  isSubsetLoading: boolean;
+  subsetError: string | null;
+  subsets: NativeChecklistSubset[];
 }) {
   return (
     <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -536,42 +516,37 @@ function ChecklistHome({
         <Text numberOfLines={3} style={styles.homeSetTitle}>{selectedSet.name}</Text>
         <Text style={styles.selectedMeta}>{formatFullReleaseDate(selectedSet.releaseDate)}</Text>
 
-        <View style={styles.homeSearchWrap}>
-          <TextInput
-            autoCapitalize="none"
-            autoCorrect={false}
-            onChangeText={onChangeFighterSearch}
-            placeholder="Search fighters"
-            placeholderTextColor={colors.gray500}
-            returnKeyType="search"
-            style={styles.searchInput}
-            value={fighterSearch}
-          />
-          {fighterSearch ? (
-            <Pressable onPress={() => onChangeFighterSearch('')} style={styles.clearSearchButton}>
-              <Text style={styles.clearSearchText}>Clear</Text>
-            </Pressable>
-          ) : null}
-        </View>
-
         <View style={styles.listHeader}>
           <Text style={styles.kicker}>Checklist Sections</Text>
         </View>
 
-        <View style={styles.sectionList}>
-          {CHECKLIST_SECTIONS.map((section, index) => (
-            <View key={section}>
-              {index > 0 && <View style={styles.sectionSeparator} />}
-              <Pressable
-                onPress={section === 'Base Set' ? () => onSectionPress(section) : undefined}
-                style={styles.sectionRow}
-              >
-                <Text style={styles.sectionRowText}>{section}</Text>
-                <Text style={styles.setActionArrow}>{'>'}</Text>
-              </Pressable>
-            </View>
-          ))}
-        </View>
+        {isSubsetLoading ? (
+          <EmptyText message="Loading checklist sections..." />
+        ) : subsetError ? (
+          <EmptyText message={subsetError} />
+        ) : subsets.length === 0 ? (
+          <EmptyText message="No checklist sections found for this set." />
+        ) : (
+          <View style={styles.sectionList}>
+            {subsets.map((subset, index) => (
+              <View key={subset.name}>
+                {index > 0 && <View style={styles.sectionSeparator} />}
+                <Pressable
+                  onPress={() => onSectionPress(subset.name)}
+                  style={styles.sectionRow}
+                >
+                  <View style={styles.sectionRowCopy}>
+                    <Text style={styles.sectionRowText}>{subset.name}</Text>
+                    <Text style={styles.sectionRowMeta}>
+                      {subset.cardIdentityCount} cards · {subset.variantCount} variants
+                    </Text>
+                  </View>
+                  <Text style={styles.setActionArrow}>{'>'}</Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -790,6 +765,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     paddingVertical: 14,
+  },
+  sectionRowCopy: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 12,
+  },
+  sectionRowMeta: {
+    color: colors.textSoft,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 15,
+    marginTop: 3,
   },
   sectionRowText: {
     color: colors.ink,

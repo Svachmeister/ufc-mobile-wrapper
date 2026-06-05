@@ -26,6 +26,12 @@ export type NativeChecklistSet = {
   year: string | null;
 };
 
+export type NativeChecklistSubset = {
+  cardIdentityCount: number;
+  name: string;
+  variantCount: number;
+};
+
 export type NativeChecklistsData = {
   sets: NativeChecklistSet[];
   summary: {
@@ -40,6 +46,7 @@ export type NativeChecklistWritableStatus = 'owned' | 'wanted';
 
 export const CHECKLIST_CARD_PAGE_SIZE = 75;
 const CHECKLIST_CARD_SELECT = 'id,set_id,fighter_name,card_id,card_number,subset,variation,print_run,is_rookie';
+const CHECKLIST_SUBSET_PAGE_SIZE = 1000;
 const USER_CARD_SET_CHUNK_SIZE = 500;
 
 function readString(record: Record<string, unknown> | null, keys: string[]) {
@@ -111,6 +118,20 @@ function normalizeSet(row: Record<string, unknown>): NativeChecklistSet {
 
 function getCardSetKey(card: NativeChecklistCard) {
   return card.setId || null;
+}
+
+function normalizeIdentityPart(value: string | null) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+function getSubsetCardIdentity(row: Record<string, unknown>) {
+  return [
+    readString(row, ['card_id', 'card_number', 'id']),
+    readString(row, ['fighter_name']),
+  ].map(normalizeIdentityPart).join('::');
 }
 
 export function getCardsForSet(cards: NativeChecklistCard[], set: NativeChecklistSet) {
@@ -260,6 +281,55 @@ export async function loadNativeSetCards({
     nextFrom,
     totalCount: count ?? null,
   };
+}
+
+export async function loadNativeSetSubsets({ setId }: { setId: string }) {
+  const subsetMap = new Map<string, { identities: Set<string>; variantCount: number }>();
+
+  for (let from = 0; ; from += CHECKLIST_SUBSET_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('cards')
+      .select('id,subset,card_id,card_number,fighter_name')
+      .eq('set_id', setId)
+      .order('subset', { ascending: true })
+      .order('card_number', { ascending: true })
+      .order('fighter_name', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + CHECKLIST_SUBSET_PAGE_SIZE - 1);
+
+    if (error) {
+      console.warn('Native checklist subsets query failed', error.message);
+
+      return {
+        error: 'Could not load checklist sections.',
+        subsets: [] as NativeChecklistSubset[],
+      };
+    }
+
+    ((data ?? []) as Record<string, unknown>[]).forEach((row) => {
+      const subset = readString(row, ['subset']) || 'Other';
+      const summary = subsetMap.get(subset) ?? {
+        identities: new Set<string>(),
+        variantCount: 0,
+      };
+
+      summary.variantCount += 1;
+      summary.identities.add(getSubsetCardIdentity(row));
+      subsetMap.set(subset, summary);
+    });
+
+    if (!data || data.length < CHECKLIST_SUBSET_PAGE_SIZE) break;
+  }
+
+  const subsets = [...subsetMap.entries()]
+    .map(([name, summary]) => ({
+      cardIdentityCount: summary.identities.size,
+      name,
+      variantCount: summary.variantCount,
+    }))
+    .sort((a, b) => b.variantCount - a.variantCount || a.name.localeCompare(b.name));
+
+  return { error: null, subsets };
 }
 
 export async function loadNativeSetCardsByFighter({
