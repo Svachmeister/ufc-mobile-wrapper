@@ -18,13 +18,12 @@ import { sharedScreenStyles } from '@/src/components/ui/NativePrimitives';
 import { LoadingScreen, ScreenState } from '@/src/components/ui/ScreenState';
 import { useAuth } from '@/src/features/auth/AuthProvider';
 import {
-  CHECKLIST_CARD_PAGE_SIZE,
   type NativeChecklistCard,
   type NativeChecklistSet,
   type NativeChecklistSubset,
   getNextChecklistStatus,
   loadNativeChecklists,
-  loadNativeSetCardsBySubset,
+  loadNativeSetCardsBySubsetForMatrix,
   loadNativeSetSubsets,
   saveNativeChecklistStatus,
 } from '@/src/lib/checklists';
@@ -221,6 +220,8 @@ export function SetsScreen() {
   }, []);
 
   const loadMatrixCards = useCallback(async ({ setId, subset }: { setId: string; subset: string }) => {
+    if (!user?.id) return;
+
     const requestId = matrixRequestRef.current + 1;
     matrixRequestRef.current = requestId;
 
@@ -228,39 +229,24 @@ export function SetsScreen() {
     setMatrixError(null);
     setMatrixCards([]);
 
-    const cardsById = new Map<string, NativeChecklistCard>();
-    let from = 0;
-    let hasMore = true;
+    const result = await loadNativeSetCardsBySubsetForMatrix({
+      setId,
+      subset,
+      userId: user.id,
+    });
 
-    while (hasMore) {
-      const result = await loadNativeSetCardsBySubset({
-        from,
-        pageSize: CHECKLIST_CARD_PAGE_SIZE,
-        setId,
-        subset,
-        userCardStatuses: userCardStatusesRef.current,
-      });
+    if (matrixRequestRef.current !== requestId) return;
 
-      if (matrixRequestRef.current !== requestId) return;
-
-      if (result.error) {
-        setMatrixError(result.error);
-        setMatrixCards([]);
-        setIsMatrixLoading(false);
-        return;
-      }
-
-      result.cards.forEach((card) => {
-        if (card.cardId && card.cardId !== 'unknown-card') cardsById.set(card.cardId, card);
-      });
-
-      from = result.nextFrom;
-      hasMore = result.hasMore;
+    if (result.error) {
+      setMatrixError(result.error);
+      setMatrixCards([]);
+      setIsMatrixLoading(false);
+      return;
     }
 
-    setMatrixCards([...cardsById.values()]);
+    setMatrixCards(result.cards);
     setIsMatrixLoading(false);
-  }, []);
+  }, [user?.id]);
 
   const handleSectionPress = useCallback((section: string) => {
     setSelectedSection(section);
@@ -297,11 +283,26 @@ export function SetsScreen() {
 
   const matrixData = useMemo(() => {
     if (!selectedSection || !selectedSet) return null;
-    return buildChecklistMatrixData({
+    const startedAt = Date.now();
+    const nextMatrixData = buildChecklistMatrixData({
       cards: matrixCards,
       sectionName: selectedSection,
       setName: selectedSet.name,
     });
+
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.info(
+        [
+          `[FCS] matrix build "${selectedSection}"`,
+          `rows=${nextMatrixData.rows.length}`,
+          `columns=${nextMatrixData.columns.length}`,
+          `cells=${Object.keys(nextMatrixData.cellCards).length}`,
+          `time=${Date.now() - startedAt}ms`,
+        ].join(' | '),
+      );
+    }
+
+    return nextMatrixData;
   }, [matrixCards, selectedSection, selectedSet]);
 
   const handleMatrixCellPress = useCallback(async (

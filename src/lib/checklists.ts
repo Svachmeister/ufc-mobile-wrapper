@@ -45,9 +45,18 @@ export type NativeChecklistsData = {
 export type NativeChecklistWritableStatus = 'owned' | 'wanted';
 
 export const CHECKLIST_CARD_PAGE_SIZE = 75;
+export const CHECKLIST_MATRIX_CARD_PAGE_SIZE = 1000;
 const CHECKLIST_CARD_SELECT = 'id,set_id,fighter_name,card_id,card_number,subset,variation,print_run,is_rookie';
-const CHECKLIST_SUBSET_PAGE_SIZE = 1000;
+const CHECKLIST_SUBSET_PAGE_SIZE = 2000;
 const USER_CARD_SET_CHUNK_SIZE = 500;
+const USER_CARD_STATUS_CHUNK_SIZE = 150;
+
+type NativeChecklistSubsetCacheEntry = {
+  rowCount: number;
+  subsets: NativeChecklistSubset[];
+};
+
+const nativeSetSubsetCache = new Map<string, NativeChecklistSubsetCacheEntry>();
 
 function readString(record: Record<string, unknown> | null, keys: string[]) {
   if (!record) return null;
@@ -151,6 +160,10 @@ function getUserCardStatusMap(rows: Record<string, unknown>[]) {
   );
 }
 
+function isDevRuntime() {
+  return typeof __DEV__ !== 'undefined' && __DEV__;
+}
+
 function getStatusCounts(statuses: Iterable<string | null>) {
   const values = [...statuses];
 
@@ -158,6 +171,10 @@ function getStatusCounts(statuses: Iterable<string | null>) {
     owned: values.filter((status) => status && OWNED_LIKE_STATUSES.has(status)).length,
     wanted: values.filter((status) => status === 'wanted').length,
   };
+}
+
+function cloneNativeChecklistSubsets(subsets: NativeChecklistSubset[]) {
+  return subsets.map((subset) => ({ ...subset }));
 }
 
 async function loadUserCardSetIds(cardIds: string[]) {
@@ -284,12 +301,37 @@ export async function loadNativeSetCards({
 }
 
 export async function loadNativeSetSubsets({ setId }: { setId: string }) {
+  const startedAt = Date.now();
+  const cached = nativeSetSubsetCache.get(setId);
+
+  if (cached) {
+    if (isDevRuntime()) {
+      console.info(
+        [
+          '[FCS] subset summary load',
+          `setId=${setId}`,
+          'cache=hit',
+          `rows=${cached.rowCount}`,
+          `subsets=${cached.subsets.length}`,
+          `time=${Date.now() - startedAt}ms`,
+        ].join(' | '),
+      );
+    }
+
+    return {
+      error: null,
+      subsets: cloneNativeChecklistSubsets(cached.subsets),
+    };
+  }
+
   const subsetMap = new Map<string, { identities: Set<string>; variantCount: number }>();
+  let pageCount = 0;
+  let rowCount = 0;
 
   for (let from = 0; ; from += CHECKLIST_SUBSET_PAGE_SIZE) {
     const { data, error } = await supabase
       .from('cards')
-      .select('id,subset,card_id,card_number,fighter_name')
+      .select('subset,card_id,card_number,fighter_name')
       .eq('set_id', setId)
       .order('subset', { ascending: true })
       .order('card_number', { ascending: true })
@@ -306,7 +348,11 @@ export async function loadNativeSetSubsets({ setId }: { setId: string }) {
       };
     }
 
-    ((data ?? []) as Record<string, unknown>[]).forEach((row) => {
+    const rows = (data ?? []) as Record<string, unknown>[];
+    pageCount += 1;
+    rowCount += rows.length;
+
+    rows.forEach((row) => {
       const subset = readString(row, ['subset']) || 'Other';
       const summary = subsetMap.get(subset) ?? {
         identities: new Set<string>(),
@@ -328,6 +374,26 @@ export async function loadNativeSetSubsets({ setId }: { setId: string }) {
       variantCount: summary.variantCount,
     }))
     .sort((a, b) => b.variantCount - a.variantCount || a.name.localeCompare(b.name));
+
+  nativeSetSubsetCache.set(setId, {
+    rowCount,
+    subsets: cloneNativeChecklistSubsets(subsets),
+  });
+
+  if (isDevRuntime()) {
+    console.info(
+      [
+        '[FCS] subset summary load',
+        `setId=${setId}`,
+        'cache=miss',
+        `rows=${rowCount}`,
+        `pages=${pageCount}`,
+        `pageSize=${CHECKLIST_SUBSET_PAGE_SIZE}`,
+        `subsets=${subsets.length}`,
+        `fetch=${Date.now() - startedAt}ms`,
+      ].join(' | '),
+    );
+  }
 
   return { error: null, subsets };
 }
@@ -393,6 +459,147 @@ export async function loadNativeSetCardsBySubset({
     userCardStatuses,
     warning: 'Native checklist subset cards query failed',
   });
+}
+
+async function loadUserCardStatusesForCardIds({
+  cardIds,
+  userId,
+}: {
+  cardIds: string[];
+  userId: string;
+}) {
+  const statusByCardId = new Map<string, string | null>();
+
+  for (let index = 0; index < cardIds.length; index += USER_CARD_STATUS_CHUNK_SIZE) {
+    const chunk = cardIds.slice(index, index + USER_CARD_STATUS_CHUNK_SIZE);
+    const { data, error } = await supabase
+      .from('user_cards')
+      .select('card_id,status')
+      .eq('user_id', userId)
+      .in('card_id', chunk);
+
+    if (error) {
+      if (isDevRuntime()) {
+        console.error(
+          [
+            'Native checklist matrix status query failed',
+            `cardIds=${cardIds.length}`,
+            `chunkSize=${USER_CARD_STATUS_CHUNK_SIZE}`,
+            `chunkIndex=${Math.floor(index / USER_CARD_STATUS_CHUNK_SIZE)}`,
+            `message=${error.message}`,
+          ].join(' | '),
+        );
+      } else {
+        console.warn('Native checklist matrix status query failed', error.message);
+      }
+
+      return {
+        error: 'Could not load your checklist status.',
+        statusByCardId,
+      };
+    }
+
+    ((data ?? []) as Record<string, unknown>[]).forEach((row) => {
+      const cardId = readString(row, ['card_id']);
+      if (cardId) statusByCardId.set(cardId, readString(row, ['status']));
+    });
+  }
+
+  return { error: null, statusByCardId };
+}
+
+export async function loadNativeSetCardsBySubsetForMatrix({
+  pageSize = CHECKLIST_MATRIX_CARD_PAGE_SIZE,
+  setId,
+  subset,
+  userId,
+}: {
+  pageSize?: number;
+  setId: string;
+  subset: string;
+  userId: string;
+}) {
+  const startedAt = Date.now();
+  const cardFetchStartedAt = Date.now();
+  const cardsById = new Map<string, NativeChecklistCard>();
+  let from = 0;
+  let hasMore = true;
+  let pageCount = 0;
+  let totalCount: number | null = null;
+
+  while (hasMore) {
+    const result = await loadNativeSetCardsBySubset({
+      from,
+      pageSize,
+      setId,
+      subset,
+      userCardStatuses: {},
+    });
+
+    if (result.error) {
+      return {
+        cards: [] as NativeChecklistCard[],
+        error: result.error,
+        pageCount,
+        totalCount: result.totalCount,
+      };
+    }
+
+    pageCount += 1;
+    totalCount = result.totalCount;
+    result.cards.forEach((card) => {
+      if (card.cardId && card.cardId !== 'unknown-card') cardsById.set(card.cardId, card);
+    });
+
+    from = result.nextFrom;
+    hasMore = result.hasMore;
+  }
+
+  const cardFetchMs = Date.now() - cardFetchStartedAt;
+  const statusFetchStartedAt = Date.now();
+  const cards = [...cardsById.values()];
+  const statusResult = await loadUserCardStatusesForCardIds({
+    cardIds: cards.map(card => card.cardId),
+    userId,
+  });
+  const statusFetchMs = Date.now() - statusFetchStartedAt;
+
+  if (statusResult.error) {
+    return {
+      cards: [] as NativeChecklistCard[],
+      error: statusResult.error,
+      pageCount,
+      totalCount,
+    };
+  }
+
+  const cardsWithStatuses = cards.map(card => ({
+    ...card,
+    status: statusResult.statusByCardId.has(card.cardId)
+      ? statusResult.statusByCardId.get(card.cardId) ?? null
+      : null,
+  }));
+
+  if (isDevRuntime()) {
+    console.info(
+      [
+        `[FCS] matrix section load "${subset}"`,
+        `cards=${cardsWithStatuses.length}`,
+        `pages=${pageCount}`,
+        `pageSize=${pageSize}`,
+        `cardFetch=${cardFetchMs}ms`,
+        `statusFetch=${statusFetchMs}ms`,
+        `total=${Date.now() - startedAt}ms`,
+      ].join(' | '),
+    );
+  }
+
+  return {
+    cards: cardsWithStatuses,
+    error: null,
+    pageCount,
+    totalCount,
+  };
 }
 
 function emptySetCardsResult(from: number) {
