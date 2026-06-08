@@ -52,6 +52,7 @@ const USER_CARD_SET_CHUNK_SIZE = 500;
 const USER_CARD_STATUS_CHUNK_SIZE = 150;
 
 type NativeChecklistSubsetCacheEntry = {
+  pageCount: number;
   rowCount: number;
   subsets: NativeChecklistSubset[];
 };
@@ -312,6 +313,7 @@ export async function loadNativeSetSubsets({ setId }: { setId: string }) {
           `setId=${setId}`,
           'cache=hit',
           `rows=${cached.rowCount}`,
+          `pages=${cached.pageCount}`,
           `subsets=${cached.subsets.length}`,
           `time=${Date.now() - startedAt}ms`,
         ].join(' | '),
@@ -325,13 +327,15 @@ export async function loadNativeSetSubsets({ setId }: { setId: string }) {
   }
 
   const subsetMap = new Map<string, { identities: Set<string>; variantCount: number }>();
+  let from = 0;
   let pageCount = 0;
   let rowCount = 0;
+  let totalCount: number | null = null;
 
-  for (let from = 0; ; from += CHECKLIST_SUBSET_PAGE_SIZE) {
-    const { data, error } = await supabase
+  while (true) {
+    const { count, data, error } = await supabase
       .from('cards')
-      .select('subset,card_id,card_number,fighter_name')
+      .select('subset,card_id,card_number,fighter_name', { count: 'exact' })
       .eq('set_id', setId)
       .order('subset', { ascending: true })
       .order('card_number', { ascending: true })
@@ -350,6 +354,7 @@ export async function loadNativeSetSubsets({ setId }: { setId: string }) {
 
     const rows = (data ?? []) as Record<string, unknown>[];
     pageCount += 1;
+    totalCount = count ?? totalCount;
     rowCount += rows.length;
 
     rows.forEach((row) => {
@@ -364,7 +369,26 @@ export async function loadNativeSetSubsets({ setId }: { setId: string }) {
       subsetMap.set(subset, summary);
     });
 
-    if (!data || data.length < CHECKLIST_SUBSET_PAGE_SIZE) break;
+    if (typeof totalCount === 'number' && rowCount >= totalCount) break;
+    if (rows.length === 0) break;
+    from += rows.length;
+  }
+
+  if (typeof totalCount === 'number' && rowCount < totalCount) {
+    console.warn(
+      [
+        'Native checklist subsets query ended before all rows loaded',
+        `setId=${setId}`,
+        `rows=${rowCount}`,
+        `expected=${totalCount}`,
+        `pages=${pageCount}`,
+      ].join(' | '),
+    );
+
+    return {
+      error: 'Could not load checklist sections.',
+      subsets: [] as NativeChecklistSubset[],
+    };
   }
 
   const subsets = [...subsetMap.entries()]
@@ -376,6 +400,7 @@ export async function loadNativeSetSubsets({ setId }: { setId: string }) {
     .sort((a, b) => b.variantCount - a.variantCount || a.name.localeCompare(b.name));
 
   nativeSetSubsetCache.set(setId, {
+    pageCount,
     rowCount,
     subsets: cloneNativeChecklistSubsets(subsets),
   });
