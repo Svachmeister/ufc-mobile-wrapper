@@ -49,7 +49,7 @@ export const CHECKLIST_MATRIX_CARD_PAGE_SIZE = 1000;
 const CHECKLIST_CARD_SELECT = 'id,set_id,fighter_name,card_id,card_number,subset,variation,print_run,is_rookie';
 const CHECKLIST_SUBSET_PAGE_SIZE = 1000;
 const USER_CARD_SET_CHUNK_SIZE = 500;
-const USER_CARD_STATUS_CHUNK_SIZE = 1000;
+const USER_CARD_STATUS_CHUNK_SIZE = 150;
 
 function readString(record: Record<string, unknown> | null, keys: string[]) {
   if (!record) return null;
@@ -419,7 +419,20 @@ async function loadUserCardStatusesForCardIds({
       .in('card_id', chunk);
 
     if (error) {
-      console.warn('Native checklist matrix status query failed', error.message);
+      if (isDevRuntime()) {
+        console.error(
+          [
+            'Native checklist matrix status query failed',
+            `cardIds=${cardIds.length}`,
+            `chunkSize=${USER_CARD_STATUS_CHUNK_SIZE}`,
+            `chunkIndex=${Math.floor(index / USER_CARD_STATUS_CHUNK_SIZE)}`,
+            `message=${error.message}`,
+          ].join(' | '),
+        );
+      } else {
+        console.warn('Native checklist matrix status query failed', error.message);
+      }
+
       return {
         error: 'Could not load your checklist status.',
         statusByCardId,
