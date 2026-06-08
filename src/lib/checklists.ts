@@ -47,9 +47,16 @@ export type NativeChecklistWritableStatus = 'owned' | 'wanted';
 export const CHECKLIST_CARD_PAGE_SIZE = 75;
 export const CHECKLIST_MATRIX_CARD_PAGE_SIZE = 1000;
 const CHECKLIST_CARD_SELECT = 'id,set_id,fighter_name,card_id,card_number,subset,variation,print_run,is_rookie';
-const CHECKLIST_SUBSET_PAGE_SIZE = 1000;
+const CHECKLIST_SUBSET_PAGE_SIZE = 2000;
 const USER_CARD_SET_CHUNK_SIZE = 500;
 const USER_CARD_STATUS_CHUNK_SIZE = 150;
+
+type NativeChecklistSubsetCacheEntry = {
+  rowCount: number;
+  subsets: NativeChecklistSubset[];
+};
+
+const nativeSetSubsetCache = new Map<string, NativeChecklistSubsetCacheEntry>();
 
 function readString(record: Record<string, unknown> | null, keys: string[]) {
   if (!record) return null;
@@ -164,6 +171,10 @@ function getStatusCounts(statuses: Iterable<string | null>) {
     owned: values.filter((status) => status && OWNED_LIKE_STATUSES.has(status)).length,
     wanted: values.filter((status) => status === 'wanted').length,
   };
+}
+
+function cloneNativeChecklistSubsets(subsets: NativeChecklistSubset[]) {
+  return subsets.map((subset) => ({ ...subset }));
 }
 
 async function loadUserCardSetIds(cardIds: string[]) {
@@ -290,12 +301,37 @@ export async function loadNativeSetCards({
 }
 
 export async function loadNativeSetSubsets({ setId }: { setId: string }) {
+  const startedAt = Date.now();
+  const cached = nativeSetSubsetCache.get(setId);
+
+  if (cached) {
+    if (isDevRuntime()) {
+      console.info(
+        [
+          '[FCS] subset summary load',
+          `setId=${setId}`,
+          'cache=hit',
+          `rows=${cached.rowCount}`,
+          `subsets=${cached.subsets.length}`,
+          `time=${Date.now() - startedAt}ms`,
+        ].join(' | '),
+      );
+    }
+
+    return {
+      error: null,
+      subsets: cloneNativeChecklistSubsets(cached.subsets),
+    };
+  }
+
   const subsetMap = new Map<string, { identities: Set<string>; variantCount: number }>();
+  let pageCount = 0;
+  let rowCount = 0;
 
   for (let from = 0; ; from += CHECKLIST_SUBSET_PAGE_SIZE) {
     const { data, error } = await supabase
       .from('cards')
-      .select('id,subset,card_id,card_number,fighter_name')
+      .select('subset,card_id,card_number,fighter_name')
       .eq('set_id', setId)
       .order('subset', { ascending: true })
       .order('card_number', { ascending: true })
@@ -312,7 +348,11 @@ export async function loadNativeSetSubsets({ setId }: { setId: string }) {
       };
     }
 
-    ((data ?? []) as Record<string, unknown>[]).forEach((row) => {
+    const rows = (data ?? []) as Record<string, unknown>[];
+    pageCount += 1;
+    rowCount += rows.length;
+
+    rows.forEach((row) => {
       const subset = readString(row, ['subset']) || 'Other';
       const summary = subsetMap.get(subset) ?? {
         identities: new Set<string>(),
@@ -334,6 +374,26 @@ export async function loadNativeSetSubsets({ setId }: { setId: string }) {
       variantCount: summary.variantCount,
     }))
     .sort((a, b) => b.variantCount - a.variantCount || a.name.localeCompare(b.name));
+
+  nativeSetSubsetCache.set(setId, {
+    rowCount,
+    subsets: cloneNativeChecklistSubsets(subsets),
+  });
+
+  if (isDevRuntime()) {
+    console.info(
+      [
+        '[FCS] subset summary load',
+        `setId=${setId}`,
+        'cache=miss',
+        `rows=${rowCount}`,
+        `pages=${pageCount}`,
+        `pageSize=${CHECKLIST_SUBSET_PAGE_SIZE}`,
+        `subsets=${subsets.length}`,
+        `fetch=${Date.now() - startedAt}ms`,
+      ].join(' | '),
+    );
+  }
 
   return { error: null, subsets };
 }
