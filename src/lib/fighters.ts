@@ -1,6 +1,8 @@
 import { OWNED_LIKE_STATUSES } from '@/src/lib/collection';
 import { supabase } from '@/src/lib/supabase';
 
+const CARD_FIGHTERS_CHUNK_SIZE = 500;
+
 export type NativeFighterCard = {
   cardId: string;
   detail: string;
@@ -23,7 +25,13 @@ export type NativeFighter = {
   weightClass: string | null;
 };
 
+export type CardFighterLinks = {
+  cardIdsByFighterId: Map<string, Set<string>>;
+  linkedCardIds: Set<string>;
+};
+
 export type NativeFightersData = {
+  cardFighterLinks: CardFighterLinks;
   cards: NativeFighterCard[];
   fighters: NativeFighter[];
   summary: {
@@ -101,10 +109,50 @@ function cardMatchesFighter(card: NativeFighterCard, fighter: NativeFighter) {
   return card.fighterId === fighter.id || card.fighterName === fighter.name;
 }
 
-export function getCardsForFighter(cards: NativeFighterCard[], fighter: NativeFighter) {
+export function getCardsForFighter(
+  cards: NativeFighterCard[],
+  fighter: NativeFighter,
+  cardFighterLinks: CardFighterLinks,
+) {
   return cards
-    .filter((card) => cardMatchesFighter(card, fighter))
+    .filter((card) => {
+      if (cardFighterLinks.linkedCardIds.has(card.cardId)) {
+        return cardFighterLinks.cardIdsByFighterId.get(fighter.id)?.has(card.cardId) ?? false;
+      }
+      return cardMatchesFighter(card, fighter);
+    })
     .sort((a, b) => a.detail.localeCompare(b.detail));
+}
+
+async function loadCardFighterLinks(cardIds: string[]): Promise<CardFighterLinks> {
+  const cardIdsByFighterId = new Map<string, Set<string>>();
+  const linkedCardIds = new Set<string>();
+
+  for (let index = 0; index < cardIds.length; index += CARD_FIGHTERS_CHUNK_SIZE) {
+    const chunk = cardIds.slice(index, index + CARD_FIGHTERS_CHUNK_SIZE);
+    const { data, error } = await supabase
+      .from('card_fighters')
+      .select('card_id,fighter_id')
+      .in('card_id', chunk);
+
+    if (error) {
+      console.warn('Native fighters card_fighters lookup failed', error.message);
+      return { cardIdsByFighterId: new Map(), linkedCardIds: new Set() };
+    }
+
+    ((data ?? []) as Record<string, unknown>[]).forEach((row) => {
+      const cardId = readString(row, ['card_id']);
+      const fighterId = readString(row, ['fighter_id']);
+      if (!cardId || !fighterId) return;
+
+      linkedCardIds.add(cardId);
+      const fighterCardIds = cardIdsByFighterId.get(fighterId) ?? new Set<string>();
+      fighterCardIds.add(cardId);
+      cardIdsByFighterId.set(fighterId, fighterCardIds);
+    });
+  }
+
+  return { cardIdsByFighterId, linkedCardIds };
 }
 
 export async function loadNativeFighters(userId: string) {
@@ -127,6 +175,7 @@ export async function loadNativeFighters(userId: string) {
   if (fightersResult.error || cardsResult.error || userCardsResult.error) {
     return {
       data: {
+        cardFighterLinks: { cardIdsByFighterId: new Map(), linkedCardIds: new Set() },
         cards: [],
         fighters: [],
         summary: { fighters: 0, owned: 0, wanted: 0 },
@@ -147,10 +196,11 @@ export async function loadNativeFighters(userId: string) {
       status: userCardStatusesById.get(normalized.cardId) ?? null,
     };
   });
+  const cardFighterLinks = await loadCardFighterLinks(cards.map((card) => card.cardId));
   const fighters = ((fightersResult.data ?? []) as Record<string, unknown>[])
     .map(normalizeFighter)
     .map((fighter) => {
-      const fighterCards = getCardsForFighter(cards, fighter);
+      const fighterCards = getCardsForFighter(cards, fighter, cardFighterLinks);
 
       return {
         ...fighter,
@@ -163,6 +213,7 @@ export async function loadNativeFighters(userId: string) {
 
   return {
     data: {
+      cardFighterLinks,
       cards,
       fighters,
       summary: {

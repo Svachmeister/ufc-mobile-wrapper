@@ -22,6 +22,7 @@ import {
 import { LoadingScreen, ScreenState } from '@/src/components/ui/ScreenState';
 import { useAuth } from '@/src/features/auth/AuthProvider';
 import {
+  type CardFighterLinks,
   type NativeFighter,
   type NativeFighterCard,
   getCardsForFighter,
@@ -31,6 +32,7 @@ import { OWNED_LIKE_STATUSES } from '@/src/lib/collection';
 import { colors } from '@/src/lib/theme/tokens';
 
 type FightersState = {
+  cardFighterLinks: CardFighterLinks;
   cards: NativeFighterCard[];
   fighters: NativeFighter[];
   summary: {
@@ -41,6 +43,7 @@ type FightersState = {
 };
 
 const emptyState: FightersState = {
+  cardFighterLinks: { cardIdsByFighterId: new Map(), linkedCardIds: new Set() },
   cards: [],
   fighters: [],
   summary: {
@@ -136,8 +139,8 @@ export function FightersScreen() {
     [data.fighters, selectedFighterId],
   );
   const selectedCards = useMemo(
-    () => (selectedFighter ? getCardsForFighter(data.cards, selectedFighter).slice(0, 40) : []),
-    [data.cards, selectedFighter],
+    () => (selectedFighter ? getCardsForFighter(data.cards, selectedFighter, data.cardFighterLinks).slice(0, 40) : []),
+    [data.cards, data.cardFighterLinks, selectedFighter],
   );
 
   if (isLoading) return <LoadingScreen label="Loading fighters" />;
