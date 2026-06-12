@@ -61,7 +61,7 @@ function buildRecord(row: Record<string, unknown>) {
 
 function getCardDetail(card: Record<string, unknown> | null) {
   const setName = readString(card, ['set_name', 'set_title', 'set']);
-  const cardNumber = readString(card, ['card_number', 'number', 'card_no']);
+  const cardNumber = readString(card, ['card_number', 'number', 'card_no', 'card_id']);
   const variation = readString(card, ['variation', 'parallel', 'rarity']);
   const parts = [setName, cardNumber ? `#${cardNumber}` : null, variation].filter(Boolean);
 
