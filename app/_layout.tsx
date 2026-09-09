@@ -4,6 +4,7 @@ import { useFonts, BarlowCondensed_600SemiBold, BarlowCondensed_700Bold } from '
 import { Inter_400Regular, Inter_500Medium, Inter_700Bold } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
 import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -30,6 +31,7 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }} />
     </QueryClientProvider>
   );
