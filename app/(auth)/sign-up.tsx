@@ -6,23 +6,60 @@ import { spacing } from '@/theme/tokens';
 import { supabase } from '@/lib/supabase';
 import { mapAuthError } from '@/lib/auth/errors';
 
-export default function SignIn() {
+export default function SignUp() {
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
+  const [confirmationSent, setConfirmationSent] = useState(false);
 
-  async function handleSignIn() {
+  async function handleSignUp() {
     setError(undefined);
     setLoading(true);
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { username } },
+    });
+
+    if (signUpError) {
+      setLoading(false);
+      setError(mapAuthError(signUpError));
+      return;
+    }
+
+    if (data.session && data.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', data.user.id)
+        .single();
+
+      if (!profile?.username) {
+        await supabase.from('profiles').update({ username }).eq('id', data.user.id);
+      }
+    } else {
+      setConfirmationSent(true);
+    }
 
     setLoading(false);
+  }
 
-    if (signInError) {
-      setError(mapAuthError(signInError));
-    }
+  if (confirmationSent) {
+    return (
+      <Screen>
+        <View style={styles.content}>
+          <Text variant="display" style={styles.wordmark}>
+            Fight Card Society
+          </Text>
+          <Text variant="body" style={styles.message}>
+            Check your email to confirm your account before signing in.
+          </Text>
+        </View>
+      </Screen>
+    );
   }
 
   return (
@@ -32,6 +69,7 @@ export default function SignIn() {
           Fight Card Society
         </Text>
 
+        <TextField label="Username" value={username} onChangeText={setUsername} autoCapitalize="none" editable={!loading} />
         <TextField
           label="Email"
           value={email}
@@ -46,18 +84,15 @@ export default function SignIn() {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          textContentType="password"
+          textContentType="newPassword"
           editable={!loading}
           error={error}
         />
 
-        <Button label="Sign in" onPress={handleSignIn} loading={loading} style={styles.submit} />
+        <Button label="Create account" onPress={handleSignUp} loading={loading} style={styles.submit} />
 
         <View style={styles.links}>
-          <TextLink href="/(auth)/forgot-password">Forgot password?</TextLink>
-          <TextLink href="/(auth)/sign-up" style={styles.secondLink}>
-            Create account
-          </TextLink>
+          <TextLink href="/(auth)/sign-in">Already have an account? Sign in</TextLink>
         </View>
       </View>
     </Screen>
@@ -74,14 +109,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: spacing.xxl,
   },
+  message: {
+    textAlign: 'center',
+  },
   submit: {
     marginTop: spacing.sm,
   },
   links: {
     marginTop: spacing.lg,
     alignItems: 'center',
-  },
-  secondLink: {
-    marginTop: spacing.sm,
   },
 });

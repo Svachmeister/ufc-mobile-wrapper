@@ -1,5 +1,5 @@
 import { PropsWithChildren } from 'react';
-import { Pressable, StyleSheet, PressableProps } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, PressableProps } from 'react-native';
 
 import { borderWidths, colors, radius, spacing } from '@/theme/tokens';
 import { Text } from './Text';
@@ -10,11 +10,13 @@ type ButtonProps = PropsWithChildren<
   PressableProps & {
     variant?: Variant;
     label: string;
+    loading?: boolean;
   }
 >;
 
-export function Button({ variant = 'filled', label, style, disabled, ...rest }: ButtonProps) {
+export function Button({ variant = 'filled', label, loading = false, style, disabled, ...rest }: ButtonProps) {
   const isLocked = variant === 'locked';
+  const textColor = variant === 'filled' ? 'surface' : isLocked ? 'textSecondary' : 'textPrimary';
 
   return (
     <Pressable
@@ -23,12 +25,16 @@ export function Button({ variant = 'filled', label, style, disabled, ...rest }: 
         styles[variant],
         typeof style === 'function' ? style(pressState) : style,
       ]}
-      disabled={disabled || isLocked}
+      disabled={disabled || isLocked || loading}
       {...rest}
     >
-      <Text variant="label" color={variant === 'filled' ? 'surface' : isLocked ? 'textSecondary' : 'textPrimary'}>
-        {label}
-      </Text>
+      {loading ? (
+        <ActivityIndicator color={variant === 'filled' ? colors.surface : colors.textPrimary} />
+      ) : (
+        <Text variant="label" color={textColor}>
+          {label}
+        </Text>
+      )}
     </Pressable>
   );
 }
