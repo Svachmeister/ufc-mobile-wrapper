@@ -5,15 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "ufcmobilewrapper",
+    "scheme": "fcs",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.ufcplatform.app",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.ufcplatform.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +18,6 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -34,25 +29,19 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/logo_fightcardsociety.png",
-          "imageWidth": 180,
-          "resizeMode": "contain",
-          "backgroundColor": "#050505",
-          "dark": {
-            "backgroundColor": "#050505"
-          }
+          "backgroundColor": "#208AEF",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-image",
+      "expo-font",
+      "expo-dev-client"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "c65c0636-01ea-48d6-ae25-5f24af114f17"
-      }
     }
   }
 }
