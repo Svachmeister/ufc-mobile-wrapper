@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import * as Linking from 'expo-linking';
 
-import { Button, Screen, Text, TextField } from '@/components/ui';
+import { Button, Screen, Text, TextField, TextLink } from '@/components/ui';
 import { spacing } from '@/theme/tokens';
 import { supabase } from '@/lib/supabase';
 import { mapAuthError } from '@/lib/auth/errors';
@@ -56,6 +56,10 @@ export default function ForgotPassword() {
             <Button label="Send reset link" onPress={handleSendResetLink} loading={loading} style={styles.submit} />
           </>
         )}
+
+        <View style={styles.links}>
+          <TextLink href="/(auth)/sign-in">Back to sign in</TextLink>
+        </View>
       </View>
     </Screen>
   );
@@ -76,5 +80,9 @@ const styles = StyleSheet.create({
   },
   submit: {
     marginTop: spacing.sm,
+  },
+  links: {
+    marginTop: spacing.lg,
+    alignItems: 'center',
   },
 });

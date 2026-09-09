@@ -53,7 +53,7 @@ function RootLayoutNav({ fontsLoaded }: { fontsLoaded: boolean }) {
     if (!session && !inAuthGroup) {
       router.replace('/(auth)/sign-in');
     } else if (session && inAuthGroup && !isPasswordRecovery) {
-      router.replace('/(tabs)');
+      router.replace('/(tabs)/fantasy');
     }
   }, [ready, session, segments, router]);
 

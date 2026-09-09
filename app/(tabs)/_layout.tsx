@@ -17,7 +17,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="fantasy"
         options={{
           title: 'FANTASY',
           tabBarIcon: ({ color, size }) => <Ionicons name="trophy-outline" color={color} size={size} />,

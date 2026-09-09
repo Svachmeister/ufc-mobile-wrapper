@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 
-import { Button, Screen, Text, TextField } from '@/components/ui';
+import { Button, Screen, Text, TextField, TextLink } from '@/components/ui';
 import { spacing } from '@/theme/tokens';
 import { supabase } from '@/lib/supabase';
 import { mapAuthError } from '@/lib/auth/errors';
@@ -72,7 +72,7 @@ export default function SetNewPassword() {
       return;
     }
 
-    router.replace('/(tabs)');
+    router.replace('/(tabs)/fantasy');
   }
 
   return (
@@ -113,6 +113,10 @@ export default function SetNewPassword() {
             <Button label="Set password" onPress={handleSetPassword} loading={loading} style={styles.submit} />
           </>
         )}
+
+        <View style={styles.links}>
+          <TextLink href="/(auth)/sign-in">Back to sign in</TextLink>
+        </View>
       </View>
     </Screen>
   );
@@ -133,5 +137,9 @@ const styles = StyleSheet.create({
   },
   submit: {
     marginTop: spacing.sm,
+  },
+  links: {
+    marginTop: spacing.lg,
+    alignItems: 'center',
   },
 });
