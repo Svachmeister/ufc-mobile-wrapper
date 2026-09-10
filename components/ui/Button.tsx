@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, PressableProps } from 'react-
 import { borderWidths, colors, radius, spacing } from '@/theme/tokens';
 import { Text } from './Text';
 
-type Variant = 'filled' | 'outline' | 'locked';
+type Variant = 'filled' | 'outline' | 'locked' | 'outlineDark';
 
 type ButtonProps = PropsWithChildren<
   PressableProps & {
@@ -16,7 +16,8 @@ type ButtonProps = PropsWithChildren<
 
 export function Button({ variant = 'filled', label, loading = false, style, disabled, ...rest }: ButtonProps) {
   const isLocked = variant === 'locked';
-  const textColor = variant === 'filled' ? 'surface' : isLocked ? 'textSecondary' : 'textPrimary';
+  const isLightText = variant === 'filled' || variant === 'outlineDark';
+  const textColor = isLightText ? 'surface' : isLocked ? 'textSecondary' : 'textPrimary';
 
   return (
     <Pressable
@@ -29,7 +30,7 @@ export function Button({ variant = 'filled', label, loading = false, style, disa
       {...rest}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'filled' ? colors.surface : colors.textPrimary} />
+        <ActivityIndicator color={isLightText ? colors.surface : colors.textPrimary} />
       ) : (
         <Text variant="label" color={textColor}>
           {label}
@@ -60,5 +61,11 @@ const styles = StyleSheet.create({
     borderWidth: borderWidths.structural,
     borderColor: colors.border,
     opacity: 0.6,
+  },
+  // Outline treatment for the dark welcome screen only — transparent fill, white border/label.
+  outlineDark: {
+    backgroundColor: 'transparent',
+    borderWidth: borderWidths.structural,
+    borderColor: colors.surface,
   },
 });

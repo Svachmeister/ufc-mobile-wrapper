@@ -27,6 +27,11 @@ export default function SignIn() {
 
   return (
     <Screen>
+      <View style={styles.backRow}>
+        <TextLink href="/(auth)/welcome" style={styles.backLink}>
+          ← Back
+        </TextLink>
+      </View>
       <View style={styles.content}>
         <Text variant="display" style={styles.wordmark}>
           Fight Card Society
@@ -65,6 +70,14 @@ export default function SignIn() {
 }
 
 const styles = StyleSheet.create({
+  backRow: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    alignItems: 'flex-start',
+  },
+  backLink: {
+    textAlign: 'left',
+  },
   content: {
     flex: 1,
     justifyContent: 'center',

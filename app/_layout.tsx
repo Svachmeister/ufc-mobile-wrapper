@@ -52,7 +52,7 @@ function RootLayoutNav({ fontsLoaded }: { fontsLoaded: boolean }) {
     const isPasswordRecovery = inAuthGroup && segments[1] === 'set-new-password';
 
     if (!session && !inAuthGroup) {
-      router.replace('/(auth)/sign-in');
+      router.replace('/(auth)/welcome');
     } else if (session && inAuthGroup && !isPasswordRecovery) {
       router.replace('/(tabs)/fantasy');
     } else if (session && !inAuthGroup && !inTabsGroup) {

@@ -6,6 +6,8 @@ export const colors = {
   border: '#E5E5E5',
   brandRed: '#E10600',
   championGold: '#E8B923',
+  // Reserved for the welcome screen's deliberate dark exception — do not use elsewhere.
+  inverseBackground: '#0B0B0B',
 } as const;
 
 export const spacing = {
