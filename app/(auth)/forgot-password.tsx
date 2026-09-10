@@ -5,7 +5,7 @@ import * as Linking from 'expo-linking';
 import { Button, Text, TextField, TextLink } from '@/components/ui';
 import { spacing } from '@/theme/tokens';
 import { supabase } from '@/lib/supabase';
-import { mapAuthError } from '@/lib/auth/errors';
+import { logAuthError, mapAuthError } from '@/lib/auth/errors';
 import { DarkAuthLayout } from '@/features/auth/DarkAuthLayout';
 
 export default function ForgotPassword() {
@@ -18,17 +18,23 @@ export default function ForgotPassword() {
     setError(undefined);
     setLoading(true);
 
-    const redirectTo = Linking.createURL('set-new-password');
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    try {
+      const redirectTo = Linking.createURL('set-new-password');
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
 
-    setLoading(false);
+      if (resetError) {
+        logAuthError('forgot-password', resetError);
+        setError(mapAuthError(resetError));
+        return;
+      }
 
-    if (resetError) {
-      setError(mapAuthError(resetError));
-      return;
+      setSent(true);
+    } catch (thrownError) {
+      logAuthError('forgot-password (thrown)', thrownError);
+      setError(mapAuthError(thrownError));
+    } finally {
+      setLoading(false);
     }
-
-    setSent(true);
   }
 
   return (

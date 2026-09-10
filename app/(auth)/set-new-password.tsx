@@ -6,7 +6,7 @@ import * as Linking from 'expo-linking';
 import { Button, Text, TextField, TextLink } from '@/components/ui';
 import { spacing } from '@/theme/tokens';
 import { supabase } from '@/lib/supabase';
-import { mapAuthError } from '@/lib/auth/errors';
+import { logAuthError, mapAuthError } from '@/lib/auth/errors';
 import { DarkAuthLayout } from '@/features/auth/DarkAuthLayout';
 
 export default function SetNewPassword() {
@@ -26,33 +26,40 @@ export default function SetNewPassword() {
     }
 
     (async () => {
-      const { queryParams } = Linking.parse(url);
-      const code = queryParams?.code;
-      const accessToken = queryParams?.access_token;
-      const refreshToken = queryParams?.refresh_token;
+      try {
+        const { queryParams } = Linking.parse(url);
+        const code = queryParams?.code;
+        const accessToken = queryParams?.access_token;
+        const refreshToken = queryParams?.refresh_token;
 
-      let exchangeError: { message: string } | null = null;
+        let exchangeError: unknown = null;
 
-      if (typeof code === 'string') {
-        const { error: codeError } = await supabase.auth.exchangeCodeForSession(code);
-        exchangeError = codeError;
-      } else if (typeof accessToken === 'string' && typeof refreshToken === 'string') {
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-        exchangeError = sessionError;
-      } else {
+        if (typeof code === 'string') {
+          const { error: codeError } = await supabase.auth.exchangeCodeForSession(code);
+          exchangeError = codeError;
+        } else if (typeof accessToken === 'string' && typeof refreshToken === 'string') {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          exchangeError = sessionError;
+        } else {
+          logAuthError('set-new-password (no code/tokens in link)', { url });
+          setLinkError('This reset link is invalid or has expired.');
+          return;
+        }
+
+        if (exchangeError) {
+          logAuthError('set-new-password (exchange)', exchangeError);
+          setLinkError('This reset link is invalid or has expired.');
+          return;
+        }
+
+        setSessionReady(true);
+      } catch (thrownError) {
+        logAuthError('set-new-password (exchange thrown)', thrownError);
         setLinkError('This reset link is invalid or has expired.');
-        return;
       }
-
-      if (exchangeError) {
-        setLinkError('This reset link is invalid or has expired.');
-        return;
-      }
-
-      setSessionReady(true);
     })();
   }, [url, sessionReady]);
 
@@ -65,15 +72,23 @@ export default function SetNewPassword() {
     }
 
     setLoading(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    setLoading(false);
 
-    if (updateError) {
-      setError(mapAuthError(updateError));
-      return;
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+
+      if (updateError) {
+        logAuthError('set-new-password', updateError);
+        setError(mapAuthError(updateError));
+        return;
+      }
+
+      router.replace('/(tabs)/fantasy');
+    } catch (thrownError) {
+      logAuthError('set-new-password (thrown)', thrownError);
+      setError(mapAuthError(thrownError));
+    } finally {
+      setLoading(false);
     }
-
-    router.replace('/(tabs)/fantasy');
   }
 
   return (

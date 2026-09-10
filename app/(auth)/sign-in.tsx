@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { Button, TextField, TextLink } from '@/components/ui';
 import { spacing } from '@/theme/tokens';
 import { supabase } from '@/lib/supabase';
-import { mapAuthError } from '@/lib/auth/errors';
+import { logAuthError, mapAuthError } from '@/lib/auth/errors';
 import { DarkAuthLayout } from '@/features/auth/DarkAuthLayout';
 
 export default function SignIn() {
@@ -17,12 +17,18 @@ export default function SignIn() {
     setError(undefined);
     setLoading(true);
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
-    setLoading(false);
-
-    if (signInError) {
-      setError(mapAuthError(signInError));
+      if (signInError) {
+        logAuthError('sign-in', signInError);
+        setError(mapAuthError(signInError));
+      }
+    } catch (thrownError) {
+      logAuthError('sign-in (thrown)', thrownError);
+      setError(mapAuthError(thrownError));
+    } finally {
+      setLoading(false);
     }
   }
 

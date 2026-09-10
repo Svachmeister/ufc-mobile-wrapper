@@ -1,3 +1,15 @@
+// Always logs the raw error to Metro before it gets mapped to a friendly
+// message — the friendly message is all the user ever sees, but the real
+// name/message/status must never be silently swallowed in development.
+export function logAuthError(context: string, error: unknown): void {
+  if (error && typeof error === 'object') {
+    const { name, message, status } = error as { name?: unknown; message?: unknown; status?: unknown };
+    console.error(`[auth:${context}]`, name, message, status, error);
+  } else {
+    console.error(`[auth:${context}]`, error);
+  }
+}
+
 export function mapAuthError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   const normalized = message.toLowerCase();

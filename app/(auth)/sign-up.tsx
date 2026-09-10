@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { Button, Text, TextField, TextLink } from '@/components/ui';
 import { spacing } from '@/theme/tokens';
 import { supabase } from '@/lib/supabase';
-import { mapAuthError } from '@/lib/auth/errors';
+import { logAuthError, mapAuthError } from '@/lib/auth/errors';
 import { DarkAuthLayout } from '@/features/auth/DarkAuthLayout';
 
 export default function SignUp() {
@@ -19,33 +19,38 @@ export default function SignUp() {
     setError(undefined);
     setLoading(true);
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { username } },
-    });
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { username } },
+      });
 
-    if (signUpError) {
-      setLoading(false);
-      setError(mapAuthError(signUpError));
-      return;
-    }
-
-    if (data.session && data.user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', data.user.id)
-        .single();
-
-      if (!profile?.username) {
-        await supabase.from('profiles').update({ username }).eq('id', data.user.id);
+      if (signUpError) {
+        logAuthError('sign-up', signUpError);
+        setError(mapAuthError(signUpError));
+        return;
       }
-    } else {
-      setConfirmationSent(true);
-    }
 
-    setLoading(false);
+      if (data.session && data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', data.user.id)
+          .single();
+
+        if (!profile?.username) {
+          await supabase.from('profiles').update({ username }).eq('id', data.user.id);
+        }
+      } else {
+        setConfirmationSent(true);
+      }
+    } catch (thrownError) {
+      logAuthError('sign-up (thrown)', thrownError);
+      setError(mapAuthError(thrownError));
+    } finally {
+      setLoading(false);
+    }
   }
 
   const backRow = (
