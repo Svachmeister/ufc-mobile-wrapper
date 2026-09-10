@@ -18,21 +18,21 @@ export default function Welcome() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
 
-      <View style={styles.topSpacer} />
-
-      <View style={styles.markBlock}>
-        <Image
-          source={require('@/assets/images/logo_fightcardsociety_mark.png')}
-          contentFit="contain"
-          style={{ width: markWidth, aspectRatio: MARK_ASPECT_RATIO }}
-        />
-        <View style={styles.rule} />
-        <Text variant="label" color="surface" style={styles.tagline}>
-          Collect. Track. Compete.
-        </Text>
+      <View style={styles.markArea}>
+        <View style={styles.markAreaTopSpacer} />
+        <View style={styles.markBlock}>
+          <Image
+            source={require('@/assets/images/logo_fightcardsociety_mark.png')}
+            contentFit="contain"
+            style={{ width: markWidth, aspectRatio: MARK_ASPECT_RATIO }}
+          />
+          <View style={styles.rule} />
+          <Text variant="label" color="surface" style={styles.tagline}>
+            Collect. Track. Compete.
+          </Text>
+        </View>
+        <View style={styles.markAreaBottomSpacer} />
       </View>
-
-      <View style={styles.middleSpacer} />
 
       <View style={styles.buttons}>
         <Button label="Log in" onPress={() => router.push('/(auth)/sign-in')} style={styles.buttonGap} />
@@ -49,11 +49,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.inverseBackground,
   },
-  topSpacer: {
-    height: '8%',
-  },
   bottomSpacer: {
-    height: '4%',
+    height: spacing.xl,
+  },
+  markArea: {
+    flex: 1,
+  },
+  markAreaTopSpacer: {
+    flex: 1,
+  },
+  markAreaBottomSpacer: {
+    flex: 1.3,
   },
   markBlock: {
     alignItems: 'center',
@@ -70,9 +76,6 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     opacity: 0.7,
     textAlign: 'center',
-  },
-  middleSpacer: {
-    flex: 1,
   },
   buttons: {
     paddingHorizontal: spacing.xl,
