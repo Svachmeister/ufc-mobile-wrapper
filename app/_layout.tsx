@@ -49,7 +49,7 @@ function RootLayoutNav({ fontsLoaded }: { fontsLoaded: boolean }) {
 
     const inAuthGroup = segments[0] === '(auth)';
     const inTabsGroup = segments[0] === '(tabs)';
-    const isPasswordRecovery = inAuthGroup && segments[1] === 'set-new-password';
+    const isPasswordRecovery = inAuthGroup && (segments as readonly string[]).includes('set-new-password');
 
     if (!session && !inAuthGroup) {
       router.replace('/(auth)/welcome');

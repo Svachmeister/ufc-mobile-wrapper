@@ -6,7 +6,7 @@ import { Button, Text, TextField, TextLink } from '@/components/ui';
 import { spacing } from '@/theme/tokens';
 import { supabase } from '@/lib/supabase';
 import { mapAuthError } from '@/lib/auth/errors';
-import { DarkAuthLayout } from './_components/DarkAuthLayout';
+import { DarkAuthLayout } from '@/features/auth/DarkAuthLayout';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
