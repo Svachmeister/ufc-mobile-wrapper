@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import * as Linking from 'expo-linking';
 
-import { Button, Screen, Text, TextField, TextLink } from '@/components/ui';
+import { Button, Text, TextField, TextLink } from '@/components/ui';
 import { spacing } from '@/theme/tokens';
 import { supabase } from '@/lib/supabase';
 import { mapAuthError } from '@/lib/auth/errors';
+import { DarkAuthLayout } from './_components/DarkAuthLayout';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -31,50 +32,38 @@ export default function ForgotPassword() {
   }
 
   return (
-    <Screen>
-      <View style={styles.content}>
-        <Text variant="display" style={styles.wordmark}>
-          Fight Card Society
+    <DarkAuthLayout>
+      {sent ? (
+        <Text variant="body" color="surface" style={styles.message}>
+          If an account exists for that email, a reset link is on its way.
         </Text>
+      ) : (
+        <>
+          <TextField
+            label="Email"
+            appearance="dark"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            editable={!loading}
+            error={error}
+          />
+          <Button label="Send reset link" onPress={handleSendResetLink} loading={loading} style={styles.submit} />
+        </>
+      )}
 
-        {sent ? (
-          <Text variant="body" style={styles.message}>
-            If an account exists for that email, a reset link is on its way.
-          </Text>
-        ) : (
-          <>
-            <TextField
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              textContentType="emailAddress"
-              editable={!loading}
-              error={error}
-            />
-            <Button label="Send reset link" onPress={handleSendResetLink} loading={loading} style={styles.submit} />
-          </>
-        )}
-
-        <View style={styles.links}>
-          <TextLink href="/(auth)/sign-in">Back to sign in</TextLink>
-        </View>
+      <View style={styles.links}>
+        <TextLink href="/(auth)/sign-in" appearance="dark">
+          Back to sign in
+        </TextLink>
       </View>
-    </Screen>
+    </DarkAuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  wordmark: {
-    textAlign: 'center',
-    marginBottom: spacing.xxl,
-  },
   message: {
     textAlign: 'center',
   },

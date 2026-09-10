@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { Button, Screen, Text, TextField, TextLink } from '@/components/ui';
+import { Button, Text, TextField, TextLink } from '@/components/ui';
 import { spacing } from '@/theme/tokens';
 import { supabase } from '@/lib/supabase';
 import { mapAuthError } from '@/lib/auth/errors';
+import { DarkAuthLayout } from './_components/DarkAuthLayout';
 
 export default function SignUp() {
   const [username, setUsername] = useState('');
@@ -47,85 +48,76 @@ export default function SignUp() {
     setLoading(false);
   }
 
+  const backRow = (
+    <View style={styles.backRow}>
+      <TextLink href="/(auth)/welcome" appearance="dark" style={styles.backLink}>
+        ← Back
+      </TextLink>
+    </View>
+  );
+
   if (confirmationSent) {
     return (
-      <Screen>
-        <View style={styles.backRow}>
-          <TextLink href="/(auth)/welcome" style={styles.backLink}>
-            ← Back
-          </TextLink>
-        </View>
-        <View style={styles.content}>
-          <Text variant="display" style={styles.wordmark}>
-            Fight Card Society
-          </Text>
-          <Text variant="body" style={styles.message}>
-            Check your email to confirm your account before signing in.
-          </Text>
-        </View>
-      </Screen>
+      <DarkAuthLayout>
+        {backRow}
+        <Text variant="body" color="surface" style={styles.message}>
+          Check your email to confirm your account before signing in.
+        </Text>
+      </DarkAuthLayout>
     );
   }
 
   return (
-    <Screen>
-      <View style={styles.backRow}>
-        <TextLink href="/(auth)/welcome" style={styles.backLink}>
-          ← Back
+    <DarkAuthLayout>
+      {backRow}
+
+      <TextField
+        label="Username"
+        appearance="dark"
+        value={username}
+        onChangeText={setUsername}
+        autoCapitalize="none"
+        editable={!loading}
+      />
+      <TextField
+        label="Email"
+        appearance="dark"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+        textContentType="emailAddress"
+        editable={!loading}
+      />
+      <TextField
+        label="Password"
+        appearance="dark"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        textContentType="newPassword"
+        editable={!loading}
+        error={error}
+      />
+
+      <Button label="Create account" onPress={handleSignUp} loading={loading} style={styles.submit} />
+
+      <View style={styles.links}>
+        <TextLink href="/(auth)/sign-in" appearance="dark">
+          Already have an account? Sign in
         </TextLink>
       </View>
-      <View style={styles.content}>
-        <Text variant="display" style={styles.wordmark}>
-          Fight Card Society
-        </Text>
-
-        <TextField label="Username" value={username} onChangeText={setUsername} autoCapitalize="none" editable={!loading} />
-        <TextField
-          label="Email"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          textContentType="emailAddress"
-          editable={!loading}
-        />
-        <TextField
-          label="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          textContentType="newPassword"
-          editable={!loading}
-          error={error}
-        />
-
-        <Button label="Create account" onPress={handleSignUp} loading={loading} style={styles.submit} />
-
-        <View style={styles.links}>
-          <TextLink href="/(auth)/sign-in">Already have an account? Sign in</TextLink>
-        </View>
-      </View>
-    </Screen>
+    </DarkAuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
   backRow: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
     alignItems: 'flex-start',
+    marginBottom: spacing.lg,
   },
   backLink: {
     textAlign: 'left',
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  wordmark: {
-    textAlign: 'center',
-    marginBottom: spacing.xxl,
   },
   message: {
     textAlign: 'center',

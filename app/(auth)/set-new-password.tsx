@@ -3,10 +3,11 @@ import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 
-import { Button, Screen, Text, TextField, TextLink } from '@/components/ui';
+import { Button, Text, TextField, TextLink } from '@/components/ui';
 import { spacing } from '@/theme/tokens';
 import { supabase } from '@/lib/supabase';
 import { mapAuthError } from '@/lib/auth/errors';
+import { DarkAuthLayout } from './_components/DarkAuthLayout';
 
 export default function SetNewPassword() {
   const router = useRouter();
@@ -76,62 +77,51 @@ export default function SetNewPassword() {
   }
 
   return (
-    <Screen>
-      <View style={styles.content}>
-        <Text variant="display" style={styles.wordmark}>
-          Fight Card Society
+    <DarkAuthLayout>
+      {linkError ? (
+        <Text variant="body" color="brandRed" style={styles.message}>
+          {linkError}
         </Text>
+      ) : !sessionReady ? (
+        <Text variant="body" color="surface" style={styles.message}>
+          Verifying your reset link…
+        </Text>
+      ) : (
+        <>
+          <TextField
+            label="New password"
+            appearance="dark"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            textContentType="newPassword"
+            editable={!loading}
+          />
+          <TextField
+            label="Confirm password"
+            appearance="dark"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+            textContentType="newPassword"
+            editable={!loading}
+            error={error}
+          />
 
-        {linkError ? (
-          <Text variant="body" color="brandRed" style={styles.message}>
-            {linkError}
-          </Text>
-        ) : !sessionReady ? (
-          <Text variant="body" style={styles.message}>
-            Verifying your reset link…
-          </Text>
-        ) : (
-          <>
-            <TextField
-              label="New password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              textContentType="newPassword"
-              editable={!loading}
-            />
-            <TextField
-              label="Confirm password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-              textContentType="newPassword"
-              editable={!loading}
-              error={error}
-            />
+          <Button label="Set password" onPress={handleSetPassword} loading={loading} style={styles.submit} />
+        </>
+      )}
 
-            <Button label="Set password" onPress={handleSetPassword} loading={loading} style={styles.submit} />
-          </>
-        )}
-
-        <View style={styles.links}>
-          <TextLink href="/(auth)/sign-in">Back to sign in</TextLink>
-        </View>
+      <View style={styles.links}>
+        <TextLink href="/(auth)/sign-in" appearance="dark">
+          Back to sign in
+        </TextLink>
       </View>
-    </Screen>
+    </DarkAuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  wordmark: {
-    textAlign: 'center',
-    marginBottom: spacing.xxl,
-  },
   message: {
     textAlign: 'center',
   },
