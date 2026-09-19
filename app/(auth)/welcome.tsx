@@ -7,7 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Button, Text } from '@/components/ui';
 import { colors, spacing } from '@/theme/tokens';
 
-const MARK_ASPECT_RATIO = 962 / 1118;
+const MARK_ASPECT_RATIO = 879 / 911;
 
 export default function Welcome() {
   const router = useRouter();
@@ -22,13 +22,13 @@ export default function Welcome() {
         <View style={styles.markAreaTopSpacer} />
         <View style={styles.markBlock}>
           <Image
-            source={require('@/assets/images/logo_fightcardsociety_mark.png')}
+            source={require('@/assets/images/logo_fcs_flat.png')}
             contentFit="contain"
             style={{ width: markWidth, aspectRatio: MARK_ASPECT_RATIO }}
           />
           <View style={styles.rule} />
           <Text variant="label" color="surface" style={styles.tagline}>
-            Collect. Track. Compete.
+            One passion. One place. One society.
           </Text>
         </View>
         <View style={styles.markAreaBottomSpacer} />
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   tagline: {
     marginTop: spacing.md,
     fontSize: 13,
-    letterSpacing: 3,
+    letterSpacing: 2,
     opacity: 0.7,
     textAlign: 'center',
   },

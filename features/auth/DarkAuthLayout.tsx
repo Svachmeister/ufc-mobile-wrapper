@@ -15,7 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import { colors, spacing } from '@/theme/tokens';
 
-const MARK_ASPECT_RATIO = 962 / 1118;
+const MARK_ASPECT_RATIO = 879 / 911;
 
 export function DarkAuthLayout({ children }: PropsWithChildren) {
   const { width } = useWindowDimensions();
@@ -29,7 +29,7 @@ export function DarkAuthLayout({ children }: PropsWithChildren) {
           <Pressable onPress={Keyboard.dismiss} style={styles.flex}>
             <View style={styles.markWrap}>
               <Image
-                source={require('@/assets/images/logo_fightcardsociety_mark.png')}
+                source={require('@/assets/images/logo_fcs_flat.png')}
                 contentFit="contain"
                 style={{ width: markWidth, aspectRatio: MARK_ASPECT_RATIO }}
               />

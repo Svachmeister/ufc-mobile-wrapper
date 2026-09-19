@@ -9,7 +9,23 @@
       "Bash(echo \"EXIT:$?\")",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(npm --version)",
+      "Bash(npx --version)",
+      "WebSearch",
+      "WebFetch(domain:docs.expo.dev)",
+      "Bash(npm view *)",
+      "Bash(git checkout *)",
+      "Bash(git rm *)",
+      "Bash(rm -rf app src components constants hooks scripts assets app.json eas.json package.json package-lock.json tsconfig.json eslint.config.js README.md)",
+      "Bash(rm -rf /c/Users/Doma/fcs-scaffold)",
+      "Bash(npx --yes create-expo-app@latest /c/Users/Doma/fcs-scaffold --template default --yes)",
+      "Bash(jobs -l)",
+      "Bash(rm -rf /c/Users/Doma/ufc-mobile-wrapper/node_modules)",
+      "Bash(npm install *)",
+      "Read(//c/Users/Doma/**)",
+      "Bash(npx expo-doctor *)",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }
