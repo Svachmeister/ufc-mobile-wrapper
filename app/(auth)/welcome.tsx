@@ -18,8 +18,7 @@ export default function Welcome() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
 
-      <View style={styles.markArea}>
-        <View style={styles.markAreaTopSpacer} />
+      <View style={styles.content}>
         <View style={styles.markBlock}>
           <Image
             source={require('@/assets/images/logo_fcs_flat.png')}
@@ -31,15 +30,12 @@ export default function Welcome() {
             One passion. One place. One society.
           </Text>
         </View>
-        <View style={styles.markAreaBottomSpacer} />
-      </View>
 
-      <View style={styles.buttons}>
-        <Button label="Log in" onPress={() => router.push('/(auth)/sign-in')} style={styles.buttonGap} />
-        <Button variant="outlineDark" label="Create account" onPress={() => router.push('/(auth)/sign-up')} />
+        <View style={styles.buttons}>
+          <Button label="Log in" onPress={() => router.push('/(auth)/sign-in')} style={styles.buttonGap} />
+          <Button variant="outlineDark" label="Create account" onPress={() => router.push('/(auth)/sign-up')} />
+        </View>
       </View>
-
-      <View style={styles.bottomSpacer} />
     </SafeAreaView>
   );
 }
@@ -49,17 +45,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.inverseBackground,
   },
-  bottomSpacer: {
-    height: spacing.xl * 2,
-  },
-  markArea: {
+  content: {
     flex: 1,
-  },
-  markAreaTopSpacer: {
-    flex: 1,
-  },
-  markAreaBottomSpacer: {
-    height: spacing.xl * 2,
+    justifyContent: 'center',
   },
   markBlock: {
     alignItems: 'center',
@@ -78,6 +66,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   buttons: {
+    marginTop: spacing.xl * 2,
     paddingHorizontal: spacing.xl,
   },
   buttonGap: {
