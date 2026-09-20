@@ -49,13 +49,16 @@ function RootLayoutNav({ fontsLoaded }: { fontsLoaded: boolean }) {
 
     const inAuthGroup = segments[0] === '(auth)';
     const inTabsGroup = segments[0] === '(tabs)';
+    // The picks flow is a signed-in destination that deliberately sits outside
+    // the tabs, so this guard must not bounce it back to the Fantasy tab.
+    const inPicksGroup = segments[0] === '(picks)';
     const isPasswordRecovery = inAuthGroup && (segments as readonly string[]).includes('set-new-password');
 
     if (!session && !inAuthGroup) {
       router.replace('/(auth)/welcome');
     } else if (session && inAuthGroup && !isPasswordRecovery) {
       router.replace('/(tabs)/fantasy');
-    } else if (session && !inAuthGroup && !inTabsGroup) {
+    } else if (session && !inAuthGroup && !inTabsGroup && !inPicksGroup) {
       router.replace('/(tabs)/fantasy');
     }
   }, [ready, session, segments, router]);

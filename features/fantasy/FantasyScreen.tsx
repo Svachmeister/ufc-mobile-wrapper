@@ -185,6 +185,7 @@ function FeaturedEventStatus({
   state: EventState;
   picksCloseAt: string | null;
 }) {
+  const router = useRouter();
   const userData = useFeaturedEventUserData(eventId, state);
 
   if (userData.isLoading || !userData.data) {
@@ -242,7 +243,8 @@ function FeaturedEventStatus({
           {totalFights} fights
         </Text>
       </View>
-      <Button label={label} onPress={() => {}} style={styles.actionButton} />
+      {/* Only an OPEN event has somewhere to go: the picks flow, outside the tabs. */}
+      <Button label={label} onPress={() => router.push(`/picks/${eventId}`)} style={styles.actionButton} />
     </View>
   );
 }
