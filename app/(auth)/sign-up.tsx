@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text as RNText } from 'react-native';
 
 import { Button, Text, TextField, TextLink } from '@/components/ui';
-import { spacing } from '@/theme/tokens';
+import { colors, spacing, typography } from '@/theme/tokens';
 import { supabase } from '@/lib/supabase';
 import { logAuthError, mapAuthError } from '@/lib/auth/errors';
 import { DarkAuthLayout } from '@/features/auth/DarkAuthLayout';
@@ -53,85 +53,68 @@ export default function SignUp() {
     }
   }
 
-  const backRow = (
-    <View style={styles.backRow}>
-      <TextLink href="/(auth)/welcome" appearance="dark" style={styles.backLink}>
-        ← Back
-      </TextLink>
-    </View>
-  );
-
-  if (confirmationSent) {
-    return (
-      <DarkAuthLayout>
-        {backRow}
+  return (
+    <DarkAuthLayout title="Join the society" subtitle="Create your collector profile.">
+      {confirmationSent ? (
         <Text variant="body" color="surface" style={styles.message}>
           Check your email to confirm your account before signing in.
         </Text>
-      </DarkAuthLayout>
-    );
-  }
+      ) : (
+        <>
+          <TextField
+            label="Username"
+            appearance="dark"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            editable={!loading}
+          />
+          <TextField
+            label="Email"
+            appearance="dark"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            placeholder="you@email.com"
+            editable={!loading}
+          />
+          <TextField
+            label="Password"
+            appearance="dark"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            textContentType="newPassword"
+            editable={!loading}
+            error={error}
+          />
 
-  return (
-    <DarkAuthLayout>
-      {backRow}
+          <Button label="Create account" onPress={handleSignUp} loading={loading} style={styles.submit} />
 
-      <TextField
-        label="Username"
-        appearance="dark"
-        value={username}
-        onChangeText={setUsername}
-        autoCapitalize="none"
-        editable={!loading}
-      />
-      <TextField
-        label="Email"
-        appearance="dark"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        textContentType="emailAddress"
-        editable={!loading}
-      />
-      <TextField
-        label="Password"
-        appearance="dark"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        textContentType="newPassword"
-        editable={!loading}
-        error={error}
-      />
-
-      <Button label="Create account" onPress={handleSignUp} loading={loading} style={styles.submit} />
-
-      <View style={styles.links}>
-        <TextLink href="/(auth)/sign-in" appearance="dark">
-          Already have an account? Sign in
-        </TextLink>
-      </View>
+          <TextLink href="/(auth)/sign-in" appearance="dark" style={styles.secondaryLine}>
+            Already a member? <RNText style={styles.secondaryEmphasis}>Sign in</RNText>
+          </TextLink>
+        </>
+      )}
     </DarkAuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  backRow: {
-    alignItems: 'flex-start',
-    marginBottom: spacing.lg,
-  },
-  backLink: {
-    textAlign: 'left',
-  },
   message: {
     textAlign: 'center',
   },
   submit: {
     marginTop: spacing.sm,
   },
-  links: {
+  secondaryLine: {
     marginTop: spacing.lg,
-    alignItems: 'center',
+  },
+  secondaryEmphasis: {
+    fontFamily: typography.fontFamily.heading,
+    color: colors.surface,
+    textTransform: 'uppercase',
   },
 });

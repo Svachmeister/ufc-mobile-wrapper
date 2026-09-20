@@ -92,7 +92,7 @@ export default function SetNewPassword() {
   }
 
   return (
-    <DarkAuthLayout>
+    <DarkAuthLayout title="New password" subtitle="Choose a new password for your account.">
       {linkError ? (
         <Text variant="body" color="brandRed" style={styles.message}>
           {linkError}

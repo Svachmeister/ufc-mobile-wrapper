@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text as RNText, View } from 'react-native';
 
 import { Button, TextField, TextLink } from '@/components/ui';
-import { spacing } from '@/theme/tokens';
+import { colors, spacing, typography } from '@/theme/tokens';
 import { supabase } from '@/lib/supabase';
 import { logAuthError, mapAuthError } from '@/lib/auth/errors';
 import { DarkAuthLayout } from '@/features/auth/DarkAuthLayout';
@@ -33,13 +33,7 @@ export default function SignIn() {
   }
 
   return (
-    <DarkAuthLayout>
-      <View style={styles.backRow}>
-        <TextLink href="/(auth)/welcome" appearance="dark" style={styles.backLink}>
-          ← Back
-        </TextLink>
-      </View>
-
+    <DarkAuthLayout title="Welcome back" subtitle="Sign in to your Fight Card Society account.">
       <TextField
         label="Email"
         appearance="dark"
@@ -48,6 +42,7 @@ export default function SignIn() {
         autoCapitalize="none"
         keyboardType="email-address"
         textContentType="emailAddress"
+        placeholder="you@email.com"
         editable={!loading}
       />
       <TextField
@@ -61,36 +56,38 @@ export default function SignIn() {
         error={error}
       />
 
-      <Button label="Sign in" onPress={handleSignIn} loading={loading} style={styles.submit} />
-
-      <View style={styles.links}>
-        <TextLink href="/(auth)/forgot-password" appearance="dark">
+      <View style={styles.forgotRow}>
+        <TextLink href="/(auth)/forgot-password" appearance="dark" style={styles.forgotLink}>
           Forgot password?
         </TextLink>
-        <TextLink href="/(auth)/sign-up" appearance="dark" style={styles.secondLink}>
-          Create account
-        </TextLink>
       </View>
+
+      <Button label="Sign in" onPress={handleSignIn} loading={loading} style={styles.submit} />
+
+      <TextLink href="/(auth)/sign-up" appearance="dark" style={styles.secondaryLine}>
+        New to Fight Card Society? <RNText style={styles.secondaryEmphasis}>Create account</RNText>
+      </TextLink>
     </DarkAuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  backRow: {
-    alignItems: 'flex-start',
-    marginBottom: spacing.lg,
+  forgotRow: {
+    alignItems: 'flex-end',
+    marginBottom: spacing.sm,
   },
-  backLink: {
-    textAlign: 'left',
+  forgotLink: {
+    textAlign: 'right',
   },
   submit: {
     marginTop: spacing.sm,
   },
-  links: {
+  secondaryLine: {
     marginTop: spacing.lg,
-    alignItems: 'center',
   },
-  secondLink: {
-    marginTop: spacing.sm,
+  secondaryEmphasis: {
+    fontFamily: typography.fontFamily.heading,
+    color: colors.surface,
+    textTransform: 'uppercase',
   },
 });

@@ -38,7 +38,7 @@ export default function ForgotPassword() {
   }
 
   return (
-    <DarkAuthLayout>
+    <DarkAuthLayout title="Reset password" subtitle="We'll email you a link to set a new one.">
       {sent ? (
         <Text variant="body" color="surface" style={styles.message}>
           If an account exists for that email, a reset link is on its way.
@@ -53,6 +53,7 @@ export default function ForgotPassword() {
             autoCapitalize="none"
             keyboardType="email-address"
             textContentType="emailAddress"
+            placeholder="you@email.com"
             editable={!loading}
             error={error}
           />
