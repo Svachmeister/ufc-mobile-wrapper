@@ -33,7 +33,7 @@ export default function SignIn() {
   }
 
   return (
-    <DarkAuthLayout title="Welcome back" subtitle="Sign in to your Fight Card Society account.">
+    <DarkAuthLayout title="Welcome back" subtitle="Log in to your Fight Card Society account.">
       <TextField
         label="Email"
         appearance="dark"
@@ -42,7 +42,7 @@ export default function SignIn() {
         autoCapitalize="none"
         keyboardType="email-address"
         textContentType="emailAddress"
-        placeholder="you@email.com"
+        placeholder="your@email.com"
         editable={!loading}
       />
       <TextField
@@ -62,7 +62,7 @@ export default function SignIn() {
         </TextLink>
       </View>
 
-      <Button label="Sign in" onPress={handleSignIn} loading={loading} style={styles.submit} />
+      <Button label="Log in" onPress={handleSignIn} loading={loading} style={styles.submit} />
 
       <TextLink href="/(auth)/sign-up" appearance="dark" style={styles.secondaryLine}>
         New to Fight Card Society? <RNText style={styles.secondaryEmphasis}>Create account</RNText>

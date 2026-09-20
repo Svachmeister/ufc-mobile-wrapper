@@ -7,16 +7,38 @@ import { supabase } from '@/lib/supabase';
 import { logAuthError, mapAuthError } from '@/lib/auth/errors';
 import { DarkAuthLayout } from '@/features/auth/DarkAuthLayout';
 
+function getConfirmPasswordError(password: string, confirmPassword: string): string | undefined {
+  if (password && !confirmPassword) {
+    return 'Please confirm your password.';
+  }
+
+  if (password !== confirmPassword) {
+    return 'Passwords do not match.';
+  }
+
+  return undefined;
+}
+
 export default function SignUp() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmTouched, setConfirmTouched] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
 
+  const confirmPasswordError = getConfirmPasswordError(password, confirmPassword);
+
   async function handleSignUp() {
     setError(undefined);
+
+    if (confirmPasswordError) {
+      setConfirmTouched(true);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -57,7 +79,7 @@ export default function SignUp() {
     <DarkAuthLayout title="Join the society" subtitle="Create your collector profile.">
       {confirmationSent ? (
         <Text variant="body" color="surface" style={styles.message}>
-          Check your email to confirm your account before signing in.
+          Check your email to confirm your account before logging in.
         </Text>
       ) : (
         <>
@@ -77,7 +99,7 @@ export default function SignUp() {
             autoCapitalize="none"
             keyboardType="email-address"
             textContentType="emailAddress"
-            placeholder="you@email.com"
+            placeholder="your@email.com"
             editable={!loading}
           />
           <TextField
@@ -90,11 +112,22 @@ export default function SignUp() {
             editable={!loading}
             error={error}
           />
+          <TextField
+            label="Confirm password"
+            appearance="dark"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            onBlur={() => setConfirmTouched(true)}
+            secureTextEntry
+            textContentType="newPassword"
+            editable={!loading}
+            error={confirmTouched ? confirmPasswordError : undefined}
+          />
 
           <Button label="Create account" onPress={handleSignUp} loading={loading} style={styles.submit} />
 
           <TextLink href="/(auth)/sign-in" appearance="dark" style={styles.secondaryLine}>
-            Already a member? <RNText style={styles.secondaryEmphasis}>Sign in</RNText>
+            Already a member? <RNText style={styles.secondaryEmphasis}>Log in</RNText>
           </TextLink>
         </>
       )}

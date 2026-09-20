@@ -53,7 +53,7 @@ export default function ForgotPassword() {
             autoCapitalize="none"
             keyboardType="email-address"
             textContentType="emailAddress"
-            placeholder="you@email.com"
+            placeholder="your@email.com"
             editable={!loading}
             error={error}
           />
@@ -63,7 +63,7 @@ export default function ForgotPassword() {
 
       <View style={styles.links}>
         <TextLink href="/(auth)/sign-in" appearance="dark">
-          Back to sign in
+          Back to log in
         </TextLink>
       </View>
     </DarkAuthLayout>

@@ -129,7 +129,7 @@ export default function SetNewPassword() {
 
       <View style={styles.links}>
         <TextLink href="/(auth)/sign-in" appearance="dark">
-          Back to sign in
+          Back to log in
         </TextLink>
       </View>
     </DarkAuthLayout>
