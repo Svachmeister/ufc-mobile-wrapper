@@ -36,7 +36,7 @@ export default function Welcome() {
 
       <View style={styles.buttons}>
         <Button label="Log in" onPress={() => router.push('/(auth)/sign-in')} style={styles.buttonGap} />
-        <Button variant="outlineDark" label="Sign up" onPress={() => router.push('/(auth)/sign-up')} />
+        <Button variant="outlineDark" label="Create account" onPress={() => router.push('/(auth)/sign-up')} />
       </View>
 
       <View style={styles.bottomSpacer} />
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.inverseBackground,
   },
   bottomSpacer: {
-    height: spacing.xl,
+    height: spacing.xl * 2,
   },
   markArea: {
     flex: 1,
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   markAreaBottomSpacer: {
-    flex: 1.3,
+    height: spacing.xl * 2,
   },
   markBlock: {
     alignItems: 'center',
