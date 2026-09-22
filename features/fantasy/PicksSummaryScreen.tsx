@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Button, Screen, Text } from '@/components/ui';
-import { borderWidths, colors, spacing } from '@/theme/tokens';
+import { borderWidths, colors, spacing, typography } from '@/theme/tokens';
 import { useSession } from '@/lib/auth/SessionContext';
 import { useFeaturedEvent } from '@/lib/fantasy/queries';
 import { deriveEventState, shortEventName } from '@/lib/fantasy/eventState';
@@ -24,6 +24,7 @@ import { pickPoints, pickResultLine, splitFighterName } from '@/lib/fantasy/pick
 
 const CLOSE_TARGET = 44;
 const CLOSE_ICON_SIZE = 24;
+const CHAMPION_ICON_SIZE = 18;
 
 function winnerAndOther(
   fight: FlowFight,
@@ -310,7 +311,7 @@ function SummaryFightRow({
     >
       <View style={styles.rowPositionWrap}>
         {isChampion ? (
-          <Ionicons name="trophy" size={18} color={colors.championGold} />
+          <MaterialCommunityIcons name="crown" size={CHAMPION_ICON_SIZE} color={colors.championGold} />
         ) : (
           <Text variant="body" color="textSecondary">
             {fight.fight_order}
@@ -321,8 +322,11 @@ function SummaryFightRow({
       <View style={styles.rowMiddle}>
         {names ? (
           <>
-            <Text variant="body" style={styles.rowMatchup} numberOfLines={1}>
-              {names.winnerSurname} def. {names.otherSurname}
+            {/* The picked winner carries the row; the beaten fighter trails
+                it in the body tone. */}
+            <Text style={styles.rowWinner} numberOfLines={1}>
+              {names.winnerSurname}
+              <Text style={styles.rowDefeated}> def. {names.otherSurname}</Text>
             </Text>
             <Text variant="label" color="textSecondary">
               {pickResultLine(method, round)}
@@ -587,8 +591,19 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: spacing.xs,
   },
-  rowMatchup: {
+  rowWinner: {
+    fontFamily: typography.fontFamily.heading,
+    fontSize: 22,
+    lineHeight: 26,
     textTransform: 'uppercase',
+    color: colors.textPrimary,
+  },
+  rowDefeated: {
+    fontFamily: typography.fontFamily.body,
+    fontSize: 13,
+    lineHeight: 26,
+    textTransform: 'none',
+    color: colors.textSecondary,
   },
   rowRight: {
     flexDirection: 'row',

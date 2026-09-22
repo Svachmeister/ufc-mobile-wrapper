@@ -43,7 +43,19 @@ const METHOD_LABELS: Record<PickMethod, string> = {
 
 const CLOSE_TARGET = 44;
 const CLOSE_ICON_SIZE = 24;
-const PHOTO_ASPECT_RATIO = 1;
+
+// Every block on this screen is a fixed height, so picking a winner, a method
+// or a round can never move anything vertically.
+const PHOTO_HEIGHT = 160;
+const GIVEN_NAME_HEIGHT = 16;
+const RECORD_HEIGHT = 16;
+const TAPE_ROW_HEIGHT = 28;
+const CHIP_ROW_HEIGHT = 34;
+const ERROR_LINE_HEIGHT = 20;
+const PRIMARY_BUTTON_HEIGHT = 40;
+const BOTTOM_BAR_HEIGHT = 60;
+
+const DECISION_ROUND_NOTE = 'No round — decision goes the distance';
 
 type Draft = {
   slot: FightSlot | null;
@@ -313,13 +325,19 @@ function FightPickFlow({
           </View>
         </View>
 
-        {draft.method === 'Decision' ? null : (
-          <View style={styles.pickRow}>
-            <Text variant="label" color="textSecondary" style={styles.pickRowLabel}>
-              Round
-            </Text>
-            <View style={styles.chips}>
-              {roundOptions(fight.is_five_round_fight).map((round) => (
+        {/* The round row keeps its height in every state; a Decision replaces
+            the chips rather than removing the row. */}
+        <View style={styles.pickRow}>
+          <Text variant="label" color="textSecondary" style={styles.pickRowLabel}>
+            Round
+          </Text>
+          <View style={styles.chips}>
+            {draft.method === 'Decision' ? (
+              <Text variant="body" color="textSecondary" style={styles.decisionNote} numberOfLines={1}>
+                {DECISION_ROUND_NOTE}
+              </Text>
+            ) : (
+              roundOptions(fight.is_five_round_fight).map((round) => (
                 <SelectChip
                   key={round}
                   label={String(round)}
@@ -327,17 +345,17 @@ function FightPickFlow({
                   disabled={!draft.method}
                   onPress={() => updateDraft({ round: draft.round === round ? null : round })}
                 />
-              ))}
-            </View>
+              ))
+            )}
           </View>
-        )}
+        </View>
       </View>
 
-      {errorMessage ? (
-        <Text variant="body" color="brandRed" style={styles.errorLine}>
-          {errorMessage}
-        </Text>
-      ) : null}
+      {/* Always rendered, blank when there is nothing to say, so clearing an
+          error on the next tap cannot shift the bar below it. */}
+      <Text variant="body" color="brandRed" style={styles.errorLine} numberOfLines={1}>
+        {errorMessage ?? ''}
+      </Text>
 
       <View style={styles.bottomBar}>
         <Text variant="numeric">{points == null ? MISSING : `${points} pts`}</Text>
@@ -381,7 +399,15 @@ function FighterTile({
     >
       <View style={dimmed ? styles.tileContentDimmed : undefined}>
         {fighter?.image_url ? (
-          <Image source={{ uri: fighter.image_url }} style={styles.photo} contentFit="cover" transition={0} />
+          // No fill behind the photo: the cut-out sits straight on the white
+          // screen, anchored to the bottom so both shoulders share a baseline.
+          <Image
+            source={{ uri: fighter.image_url }}
+            style={styles.photo}
+            contentFit="contain"
+            contentPosition="bottom"
+            transition={0}
+          />
         ) : (
           <View style={[styles.photo, styles.photoPlaceholder]}>
             <Text variant="heading" color="textSecondary">
@@ -392,12 +418,12 @@ function FighterTile({
         <Text variant="heading" style={styles.surname} numberOfLines={1}>
           {surname}
         </Text>
-        {given ? (
-          <Text variant="body" color="textSecondary" style={styles.givenName} numberOfLines={1}>
-            {given}
-          </Text>
-        ) : null}
-        <Text variant="body" style={styles.record}>
+        {/* Rendered even when a fighter has no given name, so a one-word name
+            cannot make its tile shorter than the other. */}
+        <Text variant="body" color="textSecondary" style={styles.givenName} numberOfLines={1}>
+          {given}
+        </Text>
+        <Text variant="body" style={styles.record} numberOfLines={1}>
           {formatRecord(fighter)}
         </Text>
       </View>
@@ -528,12 +554,15 @@ const styles = StyleSheet.create({
   tileContentDimmed: {
     opacity: 0.35,
   },
+  // No background fill — a cut-out portrait sits on the white screen. The
+  // height is fixed so both tiles stay aligned whatever the image is.
   photo: {
     width: '100%',
-    aspectRatio: PHOTO_ASPECT_RATIO,
-    backgroundColor: colors.border,
+    height: PHOTO_HEIGHT,
   },
+  // The null-image placeholder keeps the neutral block it always had.
   photoPlaceholder: {
+    backgroundColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -541,11 +570,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   givenName: {
+    height: GIVEN_NAME_HEIGHT,
     fontSize: 12,
     lineHeight: 16,
   },
   record: {
     marginTop: spacing.xs,
+    height: RECORD_HEIGHT,
     fontSize: 12,
     lineHeight: 16,
     fontFamily: typography.fontFamily.bodyMedium,
@@ -558,7 +589,7 @@ const styles = StyleSheet.create({
   tapeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.xs,
+    height: TAPE_ROW_HEIGHT,
   },
   tapeRowDivided: {
     borderTopWidth: borderWidths.structural,
@@ -579,6 +610,7 @@ const styles = StyleSheet.create({
   pickRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    height: CHIP_ROW_HEIGHT,
   },
   pickRowLabel: {
     width: 60,
@@ -586,14 +618,15 @@ const styles = StyleSheet.create({
   chips: {
     flex: 1,
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.xs,
   },
   chip: {
     flex: 1,
+    height: CHIP_ROW_HEIGHT,
     borderWidth: borderWidths.structural,
     borderColor: colors.textPrimary,
     borderRadius: radius.none,
-    paddingVertical: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -609,22 +642,30 @@ const styles = StyleSheet.create({
   chipLabel: {
     fontSize: 11,
   },
+  // Fills the round row in place of the chips when a Decision is chosen.
+  decisionNote: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
+  },
   errorLine: {
+    height: ERROR_LINE_HEIGHT,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xs,
   },
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    height: BOTTOM_BAR_HEIGHT,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
     borderTopWidth: borderWidths.structural,
     borderTopColor: colors.border,
   },
   primaryButton: {
     minWidth: 160,
+    // Fixed, so the spinner that replaces the label while saving cannot
+    // resize the bar's contents.
+    height: PRIMARY_BUTTON_HEIGHT,
   },
   primaryButtonDisabled: {
     opacity: 0.4,

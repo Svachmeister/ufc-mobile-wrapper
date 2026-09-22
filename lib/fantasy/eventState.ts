@@ -71,17 +71,25 @@ export function surname(fullName: string): string {
   return parts[parts.length - 1];
 }
 
+// The UI is English-only, so dates and times are formatted in en-US whatever
+// the phone's language is. No timeZone is passed, so both stay in the
+// device's own timezone.
+const UI_LOCALE = 'en-US';
+
+/** `TUE, OCT 6`. */
 export function formatShortEventDate(isoDate: string): string {
-  const formatted = new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(UI_LOCALE, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
-  }).format(new Date(isoDate));
-  return formatted.replace(',', '').toUpperCase();
+  })
+    .format(new Date(isoDate))
+    .toUpperCase();
 }
 
+/** `3:00 AM`. */
 export function formatLocalStartTime(isoDate: string): string {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(UI_LOCALE, {
     hour: 'numeric',
     minute: '2-digit',
   }).format(new Date(isoDate));
