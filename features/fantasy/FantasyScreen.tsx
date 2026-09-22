@@ -219,13 +219,18 @@ function FeaturedEventStatus({
         <Text variant="body" color={notSubmitted ? 'brandRed' : 'textPrimary'}>
           {notSubmitted ? 'Not submitted · 0 pts' : 'Picks locked'}
         </Text>
-        {/* Renders the real primary action; it intentionally does nothing yet — the picks flow lands in the next milestone. */}
-        <Button variant="outline" label="View your picks" onPress={() => {}} style={styles.actionButton} />
+        <Button
+          variant="outline"
+          label="View your picks"
+          onPress={() => router.push(`/picks/${eventId}/summary`)}
+          style={styles.actionButton}
+        />
       </View>
     );
   }
 
   const countdown = picksCloseAt ? `Picks close in ${formatCountdown(picksCloseAt, Date.now())}` : 'Picks open';
+  const allPicked = totalFights > 0 && pickedCount >= totalFights;
   const label =
     pickedCount === 0
       ? 'Make your picks'
@@ -243,8 +248,12 @@ function FeaturedEventStatus({
           {totalFights} fights
         </Text>
       </View>
-      {/* Only an OPEN event has somewhere to go: the picks flow, outside the tabs. */}
-      <Button label={label} onPress={() => router.push(`/picks/${eventId}`)} style={styles.actionButton} />
+      {/* Every fight picked routes to the summary; otherwise back into the flow. */}
+      <Button
+        label={label}
+        onPress={() => router.push(allPicked ? `/picks/${eventId}/summary` : `/picks/${eventId}`)}
+        style={styles.actionButton}
+      />
     </View>
   );
 }

@@ -72,7 +72,7 @@ function draftFromPick(fight: FlowFight, pick: FlowPick | undefined): Draft {
   return { slot, method, round };
 }
 
-export function FightPickScreen({ eventId }: { eventId: string }) {
+export function FightPickScreen({ eventId, focusFightId }: { eventId: string; focusFightId?: string }) {
   const router = useRouter();
   const query = usePicksFlowData(eventId);
 
@@ -110,17 +110,39 @@ export function FightPickScreen({ eventId }: { eventId: string }) {
     );
   }
 
-  return <FightPickFlow eventId={eventId} data={query.data} onLeave={leave} />;
+  return <FightPickFlow eventId={eventId} data={query.data} onLeave={leave} focusFightId={focusFightId} />;
 }
 
-function FightPickFlow({ eventId, data, onLeave }: { eventId: string; data: PicksFlowData; onLeave: () => void }) {
+function FightPickFlow({
+  eventId,
+  data,
+  onLeave,
+  focusFightId,
+}: {
+  eventId: string;
+  data: PicksFlowData;
+  onLeave: () => void;
+  focusFightId?: string;
+}) {
+  const router = useRouter();
   const { session } = useSession();
   const queryClient = useQueryClient();
   const userId = session?.user.id;
   const { fights, fightersById } = data;
 
-  // Opens at the first fight without a pick; if the card is complete, fight 1.
+  // Opened from the summary at one fight: single-edit mode, saving returns
+  // there instead of advancing through the rest of the card.
+  const isFocusMode = focusFightId != null;
+
+  // Opens at the requested fight in focus mode; otherwise the first fight
+  // without a pick, or fight 1 if the card is already complete.
   const [index, setIndex] = useState(() => {
+    if (focusFightId) {
+      const requested = fights.findIndex((fight) => fight.id === focusFightId);
+      if (requested !== -1) {
+        return requested;
+      }
+    }
     const firstUnpicked = fights.findIndex((fight) => !data.picksByFightId[fight.id]);
     return firstUnpicked === -1 ? 0 : firstUnpicked;
   });
@@ -172,6 +194,11 @@ function FightPickFlow({ eventId, data, onLeave }: { eventId: string; data: Pick
     onLeave();
   }
 
+  function finishToSummary() {
+    queryClient.invalidateQueries({ queryKey: ['fantasy'] });
+    router.replace(`/picks/${eventId}/summary`);
+  }
+
   async function handlePrimary() {
     if (!draft.slot || !userId || saving) {
       return;
@@ -202,10 +229,13 @@ function FightPickFlow({ eventId, data, onLeave }: { eventId: string; data: Pick
         },
       }));
 
+      if (isFocusMode) {
+        queryClient.invalidateQueries({ queryKey: ['fantasy'] });
+        router.back();
+        return;
+      }
       if (isLastFight) {
-        // The summary screen does not exist yet, so the last fight returns to
-        // the Event landing.
-        leaveFlow();
+        finishToSummary();
         return;
       }
       setIndex((current) => current + 1);
@@ -312,7 +342,7 @@ function FightPickFlow({ eventId, data, onLeave }: { eventId: string; data: Pick
       <View style={styles.bottomBar}>
         <Text variant="numeric">{points == null ? MISSING : `${points} pts`}</Text>
         <Button
-          label={isLastFight ? 'Review picks' : 'Next fight'}
+          label={isFocusMode ? 'Save' : isLastFight ? 'Review picks' : 'Next fight'}
           onPress={handlePrimary}
           loading={saving}
           disabled={!draft.slot || saving}

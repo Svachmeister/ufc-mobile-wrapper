@@ -72,3 +72,23 @@ export function pickPoints(hasWinner: boolean, method: PickMethod | null, round:
 export function roundOptions(isFiveRoundFight: boolean): number[] {
   return isFiveRoundFight ? [1, 2, 3, 4, 5] : [1, 2, 3];
 }
+
+/** `Submission` -> `SUB`, `Decision` -> `DEC`, `KO/TKO` stays. */
+export function shortMethodLabel(method: PickMethod): string {
+  if (method === 'Submission') {
+    return 'SUB';
+  }
+  if (method === 'Decision') {
+    return 'DEC';
+  }
+  return method;
+}
+
+/** `KO/TKO · R2`, `SUB · R3`, `DEC`, or `WINNER` when no method was chosen. */
+export function pickResultLine(method: PickMethod | null, round: number | null): string {
+  if (!method) {
+    return 'WINNER';
+  }
+  const label = shortMethodLabel(method);
+  return round != null ? `${label} · R${round}` : label;
+}

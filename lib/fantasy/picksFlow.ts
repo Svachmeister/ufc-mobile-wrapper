@@ -88,7 +88,7 @@ export function isPicksClosedError(error: unknown): boolean {
   return typeof message === 'string' && message.toLowerCase().includes('row-level security');
 }
 
-async function fetchPicksFlowData(eventId: string, userId: string): Promise<PicksFlowData> {
+export async function fetchPicksFlowData(eventId: string, userId: string): Promise<PicksFlowData> {
   const { data: fights, error: fightsError } = await supabase
     .from('fights')
     .select(FLOW_FIGHT_COLUMNS)
