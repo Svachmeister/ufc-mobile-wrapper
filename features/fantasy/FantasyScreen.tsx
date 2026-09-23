@@ -296,6 +296,11 @@ function FeaturedEventStatus({
             Did not play
           </Text>
         )}
+        <Button
+          label="See results"
+          onPress={() => router.push(`/(tabs)/fantasy/${eventId}/results`)}
+          style={styles.actionButton}
+        />
       </View>
     );
   }
