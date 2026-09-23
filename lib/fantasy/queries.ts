@@ -262,3 +262,29 @@ export function useMoreEvents(excludeEventId?: string) {
     enabled: Boolean(userId),
   });
 }
+
+// Ranking, ties and the events-played count are all computed server-side by
+// the RPC — this is a straight read of its result, capped at 100 rows.
+export type LeaderboardRow = {
+  user_id: string;
+  username: string;
+  total_points: number;
+  events_played: number;
+  perfect_cards: number;
+  rank: number;
+};
+
+async function fetchSeasonLeaderboard(): Promise<LeaderboardRow[]> {
+  const { data, error } = await supabase.rpc('get_season_leaderboard', { p_limit: 100 });
+  if (error) {
+    throw error;
+  }
+  return (data ?? []) as LeaderboardRow[];
+}
+
+export function useSeasonLeaderboard() {
+  return useQuery({
+    queryKey: ['fantasy', 'season-leaderboard'],
+    queryFn: fetchSeasonLeaderboard,
+  });
+}

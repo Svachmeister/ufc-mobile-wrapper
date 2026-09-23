@@ -4,7 +4,8 @@ import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 
 import { Button, Screen, SegmentedControl, Text } from '@/components/ui';
-import { borderWidths, colors, radius, spacing } from '@/theme/tokens';
+import { borderWidths, colors, radius, spacing, typography } from '@/theme/tokens';
+import { useSession } from '@/lib/auth/SessionContext';
 import {
   deriveEventState,
   formatCountdown,
@@ -17,7 +18,14 @@ import {
   type EventState,
   type FightRow,
 } from '@/lib/fantasy/eventState';
-import { MoreEventRow, useFeaturedEvent, useFeaturedEventUserData, useMoreEvents } from '@/lib/fantasy/queries';
+import {
+  LeaderboardRow,
+  MoreEventRow,
+  useFeaturedEvent,
+  useFeaturedEventUserData,
+  useMoreEvents,
+  useSeasonLeaderboard,
+} from '@/lib/fantasy/queries';
 
 type Tab = 'events' | 'leaderboard';
 
@@ -41,13 +49,7 @@ export function FantasyScreen({ eventId }: FantasyScreenProps) {
         />
       </View>
 
-      {tab === 'leaderboard' ? (
-        <View style={styles.centered}>
-          <Text variant="body">Leaderboard arrives with the picks flow.</Text>
-        </View>
-      ) : (
-        <EventsPane eventId={eventId} />
-      )}
+      {tab === 'leaderboard' ? <LeaderboardPane /> : <EventsPane eventId={eventId} />}
     </Screen>
   );
 }
@@ -130,6 +132,92 @@ function EventsPane({ eventId }: { eventId?: string }) {
       }
       contentContainerStyle={styles.listContent}
     />
+  );
+}
+
+function LeaderboardPane() {
+  const { session } = useSession();
+  const userId = session?.user.id;
+  const query = useSeasonLeaderboard();
+
+  if (query.isLoading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator color={colors.brandRed} />
+      </View>
+    );
+  }
+
+  if (query.isError) {
+    return (
+      <View style={styles.centered}>
+        <Text variant="body" style={styles.errorText}>
+          Could not load the leaderboard.
+        </Text>
+        <Button variant="outline" label="Try again" onPress={() => query.refetch()} style={styles.retryButton} />
+      </View>
+    );
+  }
+
+  const rows = query.data ?? [];
+  const hasOwnRow = rows.some((row) => row.user_id === userId);
+
+  return (
+    <FlashList
+      data={rows}
+      keyExtractor={(row) => row.user_id}
+      renderItem={({ item, index }) => (
+        <LeaderboardRowItem row={item} isOwnRow={item.user_id === userId} isFirst={index === 0} />
+      )}
+      refreshing={query.isRefetching}
+      onRefresh={() => query.refetch()}
+      ListHeaderComponent={
+        <Text variant="label" style={styles.leaderboardHeading}>
+          Season standings
+        </Text>
+      }
+      ListEmptyComponent={
+        <View style={styles.centered}>
+          <Text variant="body">No scores yet.</Text>
+        </View>
+      }
+      ListFooterComponent={
+        userId && !hasOwnRow && rows.length > 0 ? (
+          <Text variant="body" color="textSecondary" style={styles.noPointsLine}>
+            You have no points yet.
+          </Text>
+        ) : null
+      }
+      contentContainerStyle={styles.listContent}
+    />
+  );
+}
+
+function LeaderboardRowItem({ row, isOwnRow, isFirst }: { row: LeaderboardRow; isOwnRow: boolean; isFirst: boolean }) {
+  const eventsLabel = `${row.events_played} ${row.events_played === 1 ? 'event' : 'events'}`;
+  const perfectLabel =
+    row.perfect_cards > 0 ? ` · ${row.perfect_cards} ${row.perfect_cards === 1 ? 'perfect' : 'perfects'}` : '';
+
+  return (
+    <View
+      style={[styles.leaderboardRow, !isFirst && styles.leaderboardRowDivided, isOwnRow && styles.leaderboardRowOwn]}
+    >
+      <Text variant="body" style={styles.rank} numberOfLines={1}>
+        {row.rank}
+      </Text>
+      <View style={styles.leaderboardMiddle}>
+        <Text variant="body" style={[styles.username, isOwnRow && styles.usernameOwn]} numberOfLines={1}>
+          {row.username}
+        </Text>
+        <Text variant="body" color="textSecondary" style={styles.secondaryLine} numberOfLines={1}>
+          {eventsLabel}
+          {perfectLabel}
+        </Text>
+      </View>
+      <Text variant="body" style={[styles.points, isOwnRow && styles.pointsOwn]} numberOfLines={1}>
+        {row.total_points} PTS
+      </Text>
+    </View>
   );
 }
 
@@ -377,5 +465,65 @@ const styles = StyleSheet.create({
   rowLeft: {
     flexShrink: 1,
     gap: spacing.xs,
+  },
+  leaderboardHeading: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  leaderboardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    // Reserved on every row so the own-row bar never shifts the columns.
+    borderLeftWidth: borderWidths.emphasis,
+    borderLeftColor: 'transparent',
+  },
+  leaderboardRowDivided: {
+    borderTopWidth: borderWidths.structural,
+    borderTopColor: colors.border,
+  },
+  leaderboardRowOwn: {
+    borderLeftColor: colors.textPrimary,
+  },
+  rank: {
+    width: 32,
+    fontFamily: typography.fontFamily.headingMedium,
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  leaderboardMiddle: {
+    flex: 1,
+    marginLeft: spacing.sm,
+    marginRight: spacing.sm,
+  },
+  username: {
+    fontFamily: typography.fontFamily.headingMedium,
+    fontSize: 16,
+    lineHeight: 20,
+    textTransform: 'uppercase',
+  },
+  usernameOwn: {
+    fontFamily: typography.fontFamily.heading,
+  },
+  secondaryLine: {
+    marginTop: 2,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  points: {
+    fontFamily: typography.fontFamily.headingMedium,
+    fontSize: typography.numeric.fontSize,
+    lineHeight: typography.numeric.lineHeight,
+    textTransform: 'uppercase',
+  },
+  pointsOwn: {
+    fontFamily: typography.fontFamily.heading,
+  },
+  noPointsLine: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
 });
