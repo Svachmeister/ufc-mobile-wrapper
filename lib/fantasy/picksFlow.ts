@@ -6,7 +6,8 @@ import { useSession } from '@/lib/auth/SessionContext';
 // Exactly the columns the picks flow renders — nothing wider is selected.
 const FLOW_FIGHT_COLUMNS =
   'id, fighter1, fighter2, fighter1_id, fighter2_id, weight_class, fight_order, is_five_round_fight, is_title_fight';
-const FLOW_FIGHTER_COLUMNS = 'id, name, nationality, date_of_birth, height, reach, wins, losses, draws, image_url';
+const FLOW_FIGHTER_COLUMNS =
+  'id, name, nationality, date_of_birth, height, reach, wins, losses, draws, image_url, last_five';
 const FLOW_PICK_COLUMNS = 'fight_id, picked_fighter_id, picked_method, picked_round, is_captain';
 
 export type FightSlot = 'fighter1' | 'fighter2';
@@ -39,6 +40,9 @@ export type FlowFighter = {
   losses: number | null;
   draws: number | null;
   image_url: string | null;
+  // Oldest first, newest last, up to five characters from W/L/D/N. Empty for
+  // every fighter until a separate job backfills it.
+  last_five: string | null;
 };
 
 export type FlowPick = {

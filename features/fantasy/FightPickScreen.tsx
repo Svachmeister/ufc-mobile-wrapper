@@ -28,9 +28,11 @@ import {
   formatRecord,
   formatText,
   MISSING,
+  parseLastFive,
   pickPoints,
   roundOptions,
   splitFighterName,
+  type FormResult,
 } from '@/lib/fantasy/pickDisplay';
 
 // Displayed uppercase by the label text variant; the database spelling is what
@@ -49,11 +51,22 @@ const CLOSE_ICON_SIZE = 24;
 const PHOTO_HEIGHT = 160;
 const GIVEN_NAME_HEIGHT = 16;
 const RECORD_HEIGHT = 16;
+const FORM_SQUARE = 18;
+const FORM_ROW_HEIGHT = FORM_SQUARE;
 const TAPE_ROW_HEIGHT = 28;
 const CHIP_ROW_HEIGHT = 34;
 const ERROR_LINE_HEIGHT = 20;
 const PRIMARY_BUTTON_HEIGHT = 40;
 const BOTTOM_BAR_HEIGHT = 60;
+
+// Reserved for a W square — used nowhere else in the app.
+const FORM_WIN_COLOR = '#1E8E3E';
+const FORM_COLORS: Record<FormResult, string> = {
+  W: FORM_WIN_COLOR,
+  L: colors.brandRed,
+  D: colors.textSecondary,
+  N: colors.textSecondary,
+};
 
 const DECISION_ROUND_NOTE = 'No round — decision goes the distance';
 
@@ -426,8 +439,27 @@ function FighterTile({
         <Text variant="body" style={styles.record} numberOfLines={1}>
           {formatRecord(fighter)}
         </Text>
+        <FormIndicator lastFive={fighter?.last_five ?? null} />
       </View>
     </Pressable>
+  );
+}
+
+// Fixed-height row regardless of how many results there are — including zero,
+// which is every fighter's state until the backfill job runs.
+function FormIndicator({ lastFive }: { lastFive: string | null }) {
+  const results = parseLastFive(lastFive);
+
+  return (
+    <View style={styles.formRow}>
+      {results.map((result, position) => (
+        <View key={`${position}-${result}`} style={[styles.formSquare, { backgroundColor: FORM_COLORS[result] }]}>
+          <Text variant="label" color="surface" style={styles.formSquareLabel}>
+            {result}
+          </Text>
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -580,6 +612,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     fontFamily: typography.fontFamily.bodyMedium,
+  },
+  // Same height with five squares, fewer, or none — an empty last_five is
+  // today's normal state and must render as plain, deliberate blank space.
+  formRow: {
+    marginTop: spacing.xs,
+    height: FORM_ROW_HEIGHT,
+    flexDirection: 'row',
+    gap: 2,
+  },
+  formSquare: {
+    width: FORM_SQUARE,
+    height: FORM_SQUARE,
+    borderRadius: radius.none,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formSquareLabel: {
+    fontFamily: typography.fontFamily.heading,
+    fontSize: 11,
+    lineHeight: 13,
   },
   tape: {
     borderTopWidth: borderWidths.structural,

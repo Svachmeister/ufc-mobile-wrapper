@@ -92,3 +92,18 @@ export function pickResultLine(method: PickMethod | null, round: number | null):
   const label = shortMethodLabel(method);
   return round != null ? `${label} · R${round}` : label;
 }
+
+export type FormResult = 'W' | 'L' | 'D' | 'N';
+const FORM_RESULTS: readonly string[] = ['W', 'L', 'D', 'N'];
+
+/**
+ * `last_five` oldest-first, newest-last. Anything outside W/L/D/N — including
+ * a null or empty column, which is every fighter's state until the backfill
+ * job runs — is dropped rather than shown, character by character.
+ */
+export function parseLastFive(value: string | null | undefined): FormResult[] {
+  if (!value) {
+    return [];
+  }
+  return value.split('').filter((char): char is FormResult => FORM_RESULTS.includes(char));
+}
