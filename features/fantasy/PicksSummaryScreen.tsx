@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -25,6 +25,10 @@ import { pickPoints, pickResultLine, splitFighterName } from '@/lib/fantasy/pick
 const CLOSE_TARGET = 44;
 const CLOSE_ICON_SIZE = 24;
 const CHAMPION_ICON_SIZE = 18;
+// The read-only/locked state derived from this clock must flip live while the
+// screen stays open across the deadline, so it's refreshed on an interval
+// rather than read once impurely during render.
+const NOW_REFRESH_INTERVAL_MS = 30_000;
 
 function winnerAndOther(
   fight: FlowFight,
@@ -85,6 +89,12 @@ export function PicksSummaryScreen({ eventId }: { eventId: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNowMs(Date.now()), NOW_REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, []);
 
   function close() {
     router.replace('/(tabs)/fantasy');
@@ -122,7 +132,7 @@ export function PicksSummaryScreen({ eventId }: { eventId: string }) {
   const { event, fights: stateFights } = eventQuery.data;
   const { fights, fightersById, picksByFightId, entryStatus } = summaryQuery.data;
 
-  const state = deriveEventState(event, stateFights, Date.now());
+  const state = deriveEventState(event, stateFights, nowMs);
   const readOnly = state !== 'OPEN';
   const completed = entryStatus === 'completed';
 

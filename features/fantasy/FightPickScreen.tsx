@@ -464,7 +464,10 @@ function FormIndicator({ lastFive }: { lastFive: string | null }) {
 }
 
 function TaleOfTheTape({ fighter1, fighter2 }: { fighter1: FlowFighter | null; fighter2: FlowFighter | null }) {
-  const nowMs = Date.now();
+  // Age only needs to be correct as of when this screen was opened — it can't
+  // change mid-session, so it's snapshotted once at mount rather than read
+  // impurely on every render.
+  const [nowMs] = useState(() => Date.now());
   const age1 = ageFromDateOfBirth(fighter1?.date_of_birth, nowMs);
   const age2 = ageFromDateOfBirth(fighter2?.date_of_birth, nowMs);
 
