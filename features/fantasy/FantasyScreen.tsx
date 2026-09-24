@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
@@ -29,6 +29,12 @@ import {
 
 type Tab = 'events' | 'leaderboard';
 
+// The OPEN/LOCKED/LIVE state and the picks-close countdown must both stay
+// live while this pane stays open, so the clock is refreshed on an interval
+// rather than read once impurely during render. Once a second because the
+// countdown displays remaining time down to the second.
+const NOW_REFRESH_INTERVAL_MS = 1_000;
+
 type FantasyScreenProps = {
   eventId?: string;
 };
@@ -58,6 +64,12 @@ function EventsPane({ eventId }: { eventId?: string }) {
   const router = useRouter();
   const featured = useFeaturedEvent(eventId);
   const list = useMoreEvents(featured.data?.event.id);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNowMs(Date.now()), NOW_REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, []);
 
   if (featured.isLoading) {
     return (
@@ -87,7 +99,6 @@ function EventsPane({ eventId }: { eventId?: string }) {
   }
 
   const { event, fights } = featured.data;
-  const nowMs = Date.now();
   const state = deriveEventState(event, fights, nowMs);
   const rows = list.data?.pages.flatMap((page) => page.rows) ?? [];
 
@@ -115,7 +126,7 @@ function EventsPane({ eventId }: { eventId?: string }) {
       onRefresh={handleRefresh}
       ListHeaderComponent={
         <>
-          <FeaturedEventBlock event={event} fights={fights} state={state} />
+          <FeaturedEventBlock event={event} fights={fights} state={state} nowMs={nowMs} />
           {rows.length > 0 ? (
             <Text variant="heading" style={styles.moreEventsHeading}>
               More events
@@ -221,7 +232,17 @@ function LeaderboardRowItem({ row, isOwnRow, isFirst }: { row: LeaderboardRow; i
   );
 }
 
-function FeaturedEventBlock({ event, fights, state }: { event: EventRow; fights: FightRow[]; state: EventState }) {
+function FeaturedEventBlock({
+  event,
+  fights,
+  state,
+  nowMs,
+}: {
+  event: EventRow;
+  fights: FightRow[];
+  state: EventState;
+  nowMs: number;
+}) {
   const mainEventFight = selectDisplayMainEventFight(fights);
   const mainEventLine = mainEventFight
     ? `${surname(mainEventFight.fighter1)} vs ${surname(mainEventFight.fighter2)}`
@@ -257,6 +278,7 @@ function FeaturedEventBlock({ event, fights, state }: { event: EventRow; fights:
         totalFights={fights.length}
         state={state}
         picksCloseAt={event.picks_close_at}
+        nowMs={nowMs}
       />
     </View>
   );
@@ -267,11 +289,13 @@ function FeaturedEventStatus({
   totalFights,
   state,
   picksCloseAt,
+  nowMs,
 }: {
   eventId: string;
   totalFights: number;
   state: EventState;
   picksCloseAt: string | null;
+  nowMs: number;
 }) {
   const router = useRouter();
   const userData = useFeaturedEventUserData(eventId, state);
@@ -322,7 +346,7 @@ function FeaturedEventStatus({
     );
   }
 
-  const countdown = picksCloseAt ? `Picks close in ${formatCountdown(picksCloseAt, Date.now())}` : 'Picks open';
+  const countdown = picksCloseAt ? `Picks close in ${formatCountdown(picksCloseAt, nowMs)}` : 'Picks open';
   const allPicked = totalFights > 0 && pickedCount >= totalFights;
   const label =
     pickedCount === 0
