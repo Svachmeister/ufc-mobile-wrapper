@@ -31,9 +31,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFFFFF",
-          "image": "./assets/images/logo_fightcardsociety.png",
-          "imageWidth": 180,
+          "backgroundColor": "#0B0B0B",
+          "image": "./assets/images/logo_fcs_flat.png",
+          "imageWidth": 200,
           "resizeMode": "contain"
         }
       ],
