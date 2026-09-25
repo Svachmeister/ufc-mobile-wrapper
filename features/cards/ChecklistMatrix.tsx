@@ -12,7 +12,13 @@ import {
   type MatrixColumn,
   type ParallelInfo,
 } from '@/lib/cards/cardGrouping';
-import { useSetCardStatus, type CardStatus, type MyCardStatusMap } from '@/lib/cards/userCardStatuses';
+import {
+  nextStatusFor,
+  useSetCardStatus,
+  type CardStatus,
+  type MyCardStatusMap,
+  type NextCardStatus,
+} from '@/lib/cards/userCardStatuses';
 import { RcTag } from './ParallelChip';
 
 const FIRST_COLUMN_WIDTH = 112;
@@ -22,7 +28,7 @@ const HEADER_HEIGHT = 52;
 const CELL_SIZE = 44;
 const ERROR_VISIBLE_MS = 3000;
 
-type PressCell = (cardId: string, pressedStatus: CardStatus) => void;
+type PressCell = (cardId: string, nextStatus: NextCardStatus) => void;
 
 /**
  * Sticky layout: one horizontal ScrollView holds both the header row and a
@@ -93,12 +99,12 @@ export function ChecklistMatrix({
   const { mutateAsync } = useSetCardStatus();
   const inFlight = useRef(new Set<string>());
   const pressCell = useCallback<PressCell>(
-    (cardId, pressedStatus) => {
+    (cardId, nextStatus) => {
       if (inFlight.current.has(cardId)) {
         return;
       }
       inFlight.current.add(cardId);
-      mutateAsync({ cardId, pressedStatus })
+      mutateAsync({ cardId, nextStatus })
         .catch(() => {
           setErrorVisible(true);
           setErrorCount((count) => count + 1);
@@ -271,8 +277,8 @@ const MatrixCell = memo(function MatrixCell({
 
   return (
     <Pressable
-      onPress={() => onPress(parallel.id, 'owned')}
-      onLongPress={() => onPress(parallel.id, 'wanted')}
+      onPress={() => onPress(parallel.id, nextStatusFor(status, 'owned'))}
+      onLongPress={() => onPress(parallel.id, nextStatusFor(status, 'wanted'))}
       style={styles.cellSlot}
       accessibilityRole="button"
       accessibilityLabel={`${cardNumber} ${parallelChipLabel(parallel)}`}

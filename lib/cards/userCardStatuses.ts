@@ -63,15 +63,44 @@ export function useMyCardStatuses() {
   });
 }
 
-export type SetCardStatusParams = {
-  cardId: string;
-  pressedStatus: CardStatus;
-};
+/** null means the card has no mark (no user_cards row). */
+export type NextCardStatus = CardStatus | null;
 
 /**
- * Tapping a button whose status already matches the row's current mark
- * clears it (delete); tapping the other one, or either button from a blank
- * row, sets it (upsert). That covers all six cases the ticket lists.
+ * The toggle rules, in one place: pressing the button that matches the
+ * current mark clears it; pressing the other one, or either from a blank
+ * card, switches to it. Callers run this on the status they're displaying
+ * at the moment of the press, before anything touches the cache.
+ */
+export function nextStatusFor(current: CardStatus | undefined, pressed: CardStatus): NextCardStatus {
+  return current === pressed ? null : pressed;
+}
+
+export type SetCardStatusParams = {
+  cardId: string;
+  nextStatus: NextCardStatus;
+};
+
+function withCardStatus(
+  map: MyCardStatusMap | undefined,
+  cardId: string,
+  status: NextCardStatus,
+): MyCardStatusMap {
+  const next: MyCardStatusMap = { ...(map ?? {}) };
+  if (status === null) {
+    delete next[cardId];
+  } else {
+    next[cardId] = status;
+  }
+  return next;
+}
+
+/**
+ * Variables carry the final state for the card, decided by the caller.
+ * mutationFn must not derive it from the cache: TanStack Query awaits
+ * onMutate (which has already written the optimistic value) before it
+ * starts mutationFn, so reading the cache there sees the new state, not
+ * the old one — that is what inverted every write in M4-A.
  */
 export function useSetCardStatus() {
   const { session } = useSession();
@@ -80,13 +109,12 @@ export function useSetCardStatus() {
   const key = myCardStatusesKey(userId);
 
   return useMutation({
-    mutationFn: async ({ cardId, pressedStatus }: SetCardStatusParams) => {
+    mutationFn: async ({ cardId, nextStatus }: SetCardStatusParams) => {
       if (!userId) {
         throw new Error('Not signed in');
       }
-      const current = queryClient.getQueryData<MyCardStatusMap>(key)?.[cardId];
 
-      if (current === pressedStatus) {
+      if (nextStatus === null) {
         const { error } = await supabase.from('user_cards').delete().eq('user_id', userId).eq('card_id', cardId);
         if (error) {
           throw error;
@@ -98,29 +126,24 @@ export function useSetCardStatus() {
       // image_url and parallel_id must never be sent by the client.
       const { error } = await supabase
         .from('user_cards')
-        .upsert({ user_id: userId, card_id: cardId, status: pressedStatus }, { onConflict: 'user_id,card_id' });
+        .upsert({ user_id: userId, card_id: cardId, status: nextStatus }, { onConflict: 'user_id,card_id' });
       if (error) {
         throw error;
       }
     },
-    onMutate: async ({ cardId, pressedStatus }) => {
+    onMutate: async ({ cardId, nextStatus }) => {
       await queryClient.cancelQueries({ queryKey: key });
-      const previous = queryClient.getQueryData<MyCardStatusMap>(key);
-      const current = previous?.[cardId];
-
-      const next: MyCardStatusMap = { ...(previous ?? {}) };
-      if (current === pressedStatus) {
-        delete next[cardId];
-      } else {
-        next[cardId] = pressedStatus;
-      }
-      queryClient.setQueryData(key, next);
-
-      return { previous };
+      const previousStatus: NextCardStatus = queryClient.getQueryData<MyCardStatusMap>(key)?.[cardId] ?? null;
+      queryClient.setQueryData<MyCardStatusMap>(key, (map) => withCardStatus(map, cardId, nextStatus));
+      return { previousStatus };
     },
-    onError: (error, _vars, context) => {
+    onError: (error, { cardId }, context) => {
       console.error('[cards:set-status]', error);
-      queryClient.setQueryData(key, context?.previous);
+      // Restores only this card's mark, so a failed write can't roll back
+      // other cards' optimistic marks made in the meantime.
+      if (context) {
+        queryClient.setQueryData<MyCardStatusMap>(key, (map) => withCardStatus(map, cardId, context.previousStatus));
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: key });

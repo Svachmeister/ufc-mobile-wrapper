@@ -7,7 +7,7 @@ import { Button, Screen, Text } from '@/components/ui';
 import { borderWidths, colors, radius, spacing } from '@/theme/tokens';
 import { useCardDetail, type CardDetailData } from '@/lib/cards/queries';
 import type { ParallelInfo } from '@/lib/cards/cardGrouping';
-import { useMyCardStatuses, useSetCardStatus, type CardStatus } from '@/lib/cards/userCardStatuses';
+import { nextStatusFor, useMyCardStatuses, useSetCardStatus, type CardStatus } from '@/lib/cards/userCardStatuses';
 
 const BACK_TARGET = 44;
 const BACK_ICON_SIZE = 24;
@@ -129,7 +129,7 @@ function ParallelRow({ parallel, status }: { parallel: ParallelInfo; status: Car
   function press(pressedStatus: CardStatus) {
     setRowError(null);
     setStatus.mutate(
-      { cardId: parallel.id, pressedStatus },
+      { cardId: parallel.id, nextStatus: nextStatusFor(status, pressedStatus) },
       { onError: () => setRowError('Could not save. Try again.') },
     );
   }
