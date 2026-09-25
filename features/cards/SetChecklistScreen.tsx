@@ -4,21 +4,28 @@ import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { Button, Screen, Text } from '@/components/ui';
+import { Button, Screen, SegmentedControl, Text } from '@/components/ui';
 import { borderWidths, colors, radius, spacing } from '@/theme/tokens';
 import { groupChecklistRows, type ChecklistCard } from '@/lib/cards/cardGrouping';
 import { useSet, useSetChecklist, useSetSubsets } from '@/lib/cards/queries';
 import { useMyCardStatuses, type MyCardStatusMap } from '@/lib/cards/userCardStatuses';
 import { ParallelChip, RcTag } from './ParallelChip';
+import { ChecklistMatrix } from './ChecklistMatrix';
 
 const BACK_TARGET = 44;
 const BACK_ICON_SIZE = 24;
+const MODE_SWITCH_WIDTH = 176;
+
+type ChecklistMode = 'list' | 'matrix';
 
 export function SetChecklistScreen({ setId }: { setId: string }) {
   const router = useRouter();
   const setQuery = useSet(setId);
   const subsetsQuery = useSetSubsets(setId);
   const [selectedSubset, setSelectedSubset] = useState<string | null>(null);
+  // Lives on the screen, not the per-subset list, so it holds while the
+  // user switches subsets — and resets with the screen, not persisted.
+  const [mode, setMode] = useState<ChecklistMode>('list');
 
   const subsets = subsetsQuery.data ?? [];
 
@@ -98,10 +105,24 @@ export function SetChecklistScreen({ setId }: { setId: string }) {
             })}
           </ScrollView>
 
+          <View style={styles.modeRow}>
+            <View style={styles.modeSwitch}>
+              <SegmentedControl
+                value={mode}
+                onChange={setMode}
+                options={[
+                  { value: 'list', label: 'List' },
+                  { value: 'matrix', label: 'Matrix' },
+                ]}
+              />
+            </View>
+          </View>
+
           {selectedSubset ? (
             <ChecklistList
               setId={setId}
               subset={selectedSubset}
+              mode={mode}
               onSelectCard={(cardId) => router.push(`/(tabs)/cards/${setId}/${cardId}`)}
             />
           ) : null}
@@ -114,10 +135,12 @@ export function SetChecklistScreen({ setId }: { setId: string }) {
 function ChecklistList({
   setId,
   subset,
+  mode,
   onSelectCard,
 }: {
   setId: string;
   subset: string;
+  mode: ChecklistMode;
   onSelectCard: (cardId: string) => void;
 }) {
   const checklist = useSetChecklist(setId, subset);
@@ -161,6 +184,11 @@ function ChecklistList({
         <Text variant="body">No cards in this subset.</Text>
       </View>
     );
+  }
+
+  if (mode === 'matrix') {
+    // Keyed by subset so horizontal scroll starts from the left on each subset.
+    return <ChecklistMatrix key={subset} cards={cards} statuses={statuses} onSelectCard={onSelectCard} />;
   }
 
   return (
@@ -258,6 +286,14 @@ const styles = StyleSheet.create({
   },
   subsetChipActive: {
     backgroundColor: colors.textPrimary,
+  },
+  modeRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  modeSwitch: {
+    width: MODE_SWITCH_WIDTH,
   },
   listContent: {
     paddingBottom: spacing.xxl,

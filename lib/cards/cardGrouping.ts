@@ -84,7 +84,7 @@ export type ParallelInfo = {
 };
 
 /** Largest print run first, unnumbered ahead of all numbered ones, 1/1 last. */
-export function sortParallels(parallels: ParallelInfo[]): ParallelInfo[] {
+export function sortParallels<T extends Pick<ParallelInfo, 'print_run'>>(parallels: T[]): T[] {
   return [...parallels].sort((a, b) => {
     if (a.print_run == null && b.print_run == null) return 0;
     if (a.print_run == null) return -1;
@@ -101,6 +101,39 @@ export function parallelChipLabel(parallel: ParallelInfo): string {
     return parallel.variation;
   }
   return `${parallel.variation} /${parallel.print_run}`;
+}
+
+/**
+ * Identity of a parallel across cards: each card in a subset has its own
+ * cards.id per parallel, so the matrix lines its columns up on variation +
+ * print run instead.
+ */
+export function parallelKey(parallel: Pick<ParallelInfo, 'variation' | 'print_run'>): string {
+  return `${parallel.variation}|${parallel.print_run ?? ''}`;
+}
+
+export type MatrixColumn = {
+  key: string;
+  variation: string;
+  print_run: number | null;
+};
+
+/**
+ * Distinct parallels present anywhere in the subset, in the same order the
+ * list chips use (sortParallels — ties keep first-seen order). Only covers
+ * the pages loaded so far, so columns can appear as more pages arrive.
+ */
+export function matrixColumns(cards: ParallelGroup[]): MatrixColumn[] {
+  const byKey = new Map<string, MatrixColumn>();
+  for (const card of cards) {
+    for (const parallel of card.parallels) {
+      const key = parallelKey(parallel);
+      if (!byKey.has(key)) {
+        byKey.set(key, { key, variation: parallel.variation, print_run: parallel.print_run });
+      }
+    }
+  }
+  return sortParallels(Array.from(byKey.values()));
 }
 
 export type ParallelGroupRow = {
