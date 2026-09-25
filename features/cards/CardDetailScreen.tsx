@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { Button, Screen, Text } from '@/components/ui';
-import { borderWidths, colors, spacing } from '@/theme/tokens';
-import { useCardDetail } from '@/lib/cards/queries';
+import { borderWidths, colors, radius, spacing } from '@/theme/tokens';
+import { useCardDetail, type CardDetailData } from '@/lib/cards/queries';
 import type { ParallelInfo } from '@/lib/cards/cardGrouping';
+import { useMyCardStatuses, useSetCardStatus, type CardStatus } from '@/lib/cards/userCardStatuses';
 
 const BACK_TARGET = 44;
 const BACK_ICON_SIZE = 24;
@@ -45,12 +47,18 @@ export function CardDetailScreen({ cardId }: { cardId: string }) {
     );
   }
 
-  const { card, parallels, fighters } = query.data;
+  return <CardDetailBody data={query.data} onBack={back} />;
+}
+
+function CardDetailBody({ data, onBack }: { data: CardDetailData; onBack: () => void }) {
+  const router = useRouter();
+  const { card, parallels, fighters } = data;
+  const statuses = useMyCardStatuses().data;
 
   return (
     <Screen>
       <View style={styles.header}>
-        <Pressable onPress={back} style={styles.back} accessibilityRole="button" accessibilityLabel="Back">
+        <Pressable onPress={onBack} style={styles.back} accessibilityRole="button" accessibilityLabel="Back">
           <Ionicons name="chevron-back" size={BACK_ICON_SIZE} color={colors.textPrimary} />
         </Pressable>
       </View>
@@ -79,23 +87,83 @@ export function CardDetailScreen({ cardId }: { cardId: string }) {
           Parallels
         </Text>
         {parallels.map((parallel) => (
-          <ParallelRow key={parallel.id} parallel={parallel} />
+          <ParallelRow key={parallel.id} parallel={parallel} status={statuses?.[parallel.id]} />
         ))}
       </ScrollView>
     </Screen>
   );
 }
 
-function ParallelRow({ parallel }: { parallel: ParallelInfo }) {
+function ParallelRow({ parallel, status }: { parallel: ParallelInfo; status: CardStatus | undefined }) {
+  const [rowError, setRowError] = useState<string | null>(null);
+  const setStatus = useSetCardStatus();
+
   const printRunLabel = parallel.print_run === 1 ? '1/1' : parallel.print_run != null ? `/${parallel.print_run}` : '—';
 
+  function press(pressedStatus: CardStatus) {
+    setRowError(null);
+    setStatus.mutate(
+      { cardId: parallel.id, pressedStatus },
+      { onError: () => setRowError('Could not save. Try again.') },
+    );
+  }
+
   return (
-    <View style={styles.parallelRow}>
-      <Text variant="body">{parallel.variation}</Text>
-      <Text variant="body" color="textSecondary">
-        {printRunLabel}
-      </Text>
+    <View style={styles.parallelRowWrap}>
+      <View style={styles.parallelRow}>
+        <View style={styles.parallelInfo}>
+          <Text variant="body">{parallel.variation}</Text>
+          <Text variant="body" color="textSecondary">
+            {printRunLabel}
+          </Text>
+        </View>
+        <View style={styles.toggleGroup}>
+          <ToggleButton
+            label="HAVE"
+            active={status === 'owned'}
+            disabled={setStatus.isPending}
+            onPress={() => press('owned')}
+          />
+          <ToggleButton
+            label="WANT"
+            active={status === 'wanted'}
+            disabled={setStatus.isPending}
+            onPress={() => press('wanted')}
+          />
+        </View>
+      </View>
+      {rowError ? (
+        <Text variant="label" color="textSecondary" style={styles.rowError}>
+          {rowError}
+        </Text>
+      ) : null}
     </View>
+  );
+}
+
+function ToggleButton({
+  label,
+  active,
+  disabled,
+  onPress,
+}: {
+  label: 'HAVE' | 'WANT';
+  active: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active, disabled }}
+      style={[styles.toggleButton, active && styles.toggleButtonActive, disabled && styles.toggleButtonDisabled]}
+    >
+      <Text variant="label" color={active ? 'surface' : 'textPrimary'}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -140,12 +208,41 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     marginBottom: spacing.sm,
   },
+  parallelRowWrap: {
+    borderBottomWidth: borderWidths.structural,
+    borderBottomColor: colors.border,
+  },
   parallelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: spacing.sm,
-    borderBottomWidth: borderWidths.structural,
-    borderBottomColor: colors.border,
+    gap: spacing.sm,
+  },
+  parallelInfo: {
+    flexShrink: 1,
+  },
+  toggleGroup: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  toggleButton: {
+    minWidth: 44,
+    height: 44,
+    paddingHorizontal: spacing.sm,
+    borderWidth: borderWidths.structural,
+    borderColor: colors.textPrimary,
+    borderRadius: radius.none,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: colors.textPrimary,
+  },
+  toggleButtonDisabled: {
+    opacity: 0.4,
+  },
+  rowError: {
+    paddingBottom: spacing.sm,
   },
 });

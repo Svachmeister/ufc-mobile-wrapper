@@ -16,6 +16,7 @@ import {
 } from '@/lib/fantasy/pickDisplay';
 import { buildFighterCardSections, useFighterCards, useFighterDetail, type FighterDetailRow } from '@/lib/cards/fighterQueries';
 import type { FighterCardGroupRow } from '@/lib/cards/cardGrouping';
+import { useMyCardStatuses, type MyCardStatusMap } from '@/lib/cards/userCardStatuses';
 import { ParallelChip, RcTag } from './ParallelChip';
 
 const BACK_TARGET = 44;
@@ -74,6 +75,7 @@ function FighterDetailBody({ fighter, onBack }: { fighter: FighterDetailRow; onB
 
   const cardsQuery = useFighterCards(fighter.id);
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = cardsQuery;
+  const statuses = useMyCardStatuses().data;
 
   // Pages of 1000 load in the background and the list grows as they arrive,
   // same pattern as M3-A's set checklist.
@@ -120,7 +122,11 @@ function FighterDetailBody({ fighter, onBack }: { fighter: FighterDetailRow; onB
               {item.setName}
             </Text>
           ) : (
-            <FighterCardRowItem card={item.card} onPress={() => openCard(item.setId, item.card.parallels[0].id)} />
+            <FighterCardRowItem
+              card={item.card}
+              statuses={statuses}
+              onPress={() => openCard(item.setId, item.card.parallels[0].id)}
+            />
           )
         }
         ListHeaderComponent={
@@ -208,7 +214,15 @@ function TapeRow({ label, value, divided }: { label: string; value: string; divi
   );
 }
 
-function FighterCardRowItem({ card, onPress }: { card: FighterCardGroupRow; onPress: () => void }) {
+function FighterCardRowItem({
+  card,
+  statuses,
+  onPress,
+}: {
+  card: FighterCardGroupRow;
+  statuses: MyCardStatusMap | undefined;
+  onPress: () => void;
+}) {
   return (
     <Pressable onPress={onPress} style={styles.cardRow}>
       <Text variant="heading" style={styles.cardNumber} numberOfLines={1}>
@@ -223,7 +237,7 @@ function FighterCardRowItem({ card, onPress }: { card: FighterCardGroupRow; onPr
         </View>
         <View style={styles.chipsRow}>
           {card.parallels.map((parallel) => (
-            <ParallelChip key={parallel.id} parallel={parallel} />
+            <ParallelChip key={parallel.id} parallel={parallel} status={statuses?.[parallel.id]} />
           ))}
         </View>
       </View>

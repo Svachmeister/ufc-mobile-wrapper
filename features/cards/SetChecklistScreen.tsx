@@ -8,6 +8,7 @@ import { Button, Screen, Text } from '@/components/ui';
 import { borderWidths, colors, radius, spacing } from '@/theme/tokens';
 import { groupChecklistRows, type ChecklistCard } from '@/lib/cards/cardGrouping';
 import { useSet, useSetChecklist, useSetSubsets } from '@/lib/cards/queries';
+import { useMyCardStatuses, type MyCardStatusMap } from '@/lib/cards/userCardStatuses';
 import { ParallelChip, RcTag } from './ParallelChip';
 
 const BACK_TARGET = 44;
@@ -121,6 +122,7 @@ function ChecklistList({
 }) {
   const checklist = useSetChecklist(setId, subset);
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = checklist;
+  const statuses = useMyCardStatuses().data;
 
   // Pages of 1000 load and render as they arrive rather than waiting for the
   // whole subset, so this keeps pulling the next page in the background
@@ -166,14 +168,22 @@ function ChecklistList({
       data={cards}
       keyExtractor={(card) => card.card_number}
       renderItem={({ item }) => (
-        <ChecklistCardRow card={item} onPress={() => onSelectCard(item.parallels[0].id)} />
+        <ChecklistCardRow card={item} statuses={statuses} onPress={() => onSelectCard(item.parallels[0].id)} />
       )}
       contentContainerStyle={styles.listContent}
     />
   );
 }
 
-function ChecklistCardRow({ card, onPress }: { card: ChecklistCard; onPress: () => void }) {
+function ChecklistCardRow({
+  card,
+  statuses,
+  onPress,
+}: {
+  card: ChecklistCard;
+  statuses: MyCardStatusMap | undefined;
+  onPress: () => void;
+}) {
   return (
     <Pressable onPress={onPress} style={styles.cardRow}>
       <Text variant="heading" style={styles.cardNumber} numberOfLines={1}>
@@ -188,7 +198,7 @@ function ChecklistCardRow({ card, onPress }: { card: ChecklistCard; onPress: () 
         </View>
         <View style={styles.chipsRow}>
           {card.parallels.map((parallel) => (
-            <ParallelChip key={parallel.id} parallel={parallel} />
+            <ParallelChip key={parallel.id} parallel={parallel} status={statuses?.[parallel.id]} />
           ))}
         </View>
       </View>
