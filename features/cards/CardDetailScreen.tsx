@@ -12,7 +12,19 @@ import { useMyCardStatuses, useSetCardStatus, type CardStatus } from '@/lib/card
 const BACK_TARGET = 44;
 const BACK_ICON_SIZE = 24;
 
-export function CardDetailScreen({ cardId }: { cardId: string }) {
+type CardDetailScreenProps = {
+  cardId: string;
+  // Card detail is reused as-is inside the Collection stack (M4-B), which has
+  // no fighter-detail route of its own — rather than duplicate that route or
+  // make this screen push across tabs, fighter names just render as plain
+  // text there.
+  enableFighterLinks?: boolean;
+  // Where the back control lands when this screen has no history to pop to
+  // (e.g. opened by a deep link) — differs by which tab's stack it's in.
+  fallbackRoute?: '/(tabs)/cards' | '/(tabs)/collection';
+};
+
+export function CardDetailScreen({ cardId, enableFighterLinks = true, fallbackRoute = '/(tabs)/cards' }: CardDetailScreenProps) {
   const router = useRouter();
   const query = useCardDetail(cardId);
 
@@ -20,7 +32,7 @@ export function CardDetailScreen({ cardId }: { cardId: string }) {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace('/(tabs)/cards');
+      router.replace(fallbackRoute);
     }
   }
 
@@ -47,10 +59,18 @@ export function CardDetailScreen({ cardId }: { cardId: string }) {
     );
   }
 
-  return <CardDetailBody data={query.data} onBack={back} />;
+  return <CardDetailBody data={query.data} enableFighterLinks={enableFighterLinks} onBack={back} />;
 }
 
-function CardDetailBody({ data, onBack }: { data: CardDetailData; onBack: () => void }) {
+function CardDetailBody({
+  data,
+  enableFighterLinks,
+  onBack,
+}: {
+  data: CardDetailData;
+  enableFighterLinks: boolean;
+  onBack: () => void;
+}) {
   const router = useRouter();
   const { card, parallels, fighters } = data;
   const statuses = useMyCardStatuses().data;
@@ -66,13 +86,19 @@ function CardDetailBody({ data, onBack }: { data: CardDetailData; onBack: () => 
       <ScrollView contentContainerStyle={styles.content}>
         <Text variant="display">{card.card_number}</Text>
         {fighters.length > 0 ? (
-          fighters.map((fighter) => (
-            <Pressable key={fighter.id} onPress={() => router.push(`/(tabs)/cards/fighter/${fighter.id}`)}>
-              <Text variant="display" style={styles.fighterName}>
+          fighters.map((fighter) =>
+            enableFighterLinks ? (
+              <Pressable key={fighter.id} onPress={() => router.push(`/(tabs)/cards/fighter/${fighter.id}`)}>
+                <Text variant="display" style={styles.fighterName}>
+                  {fighter.name}
+                </Text>
+              </Pressable>
+            ) : (
+              <Text key={fighter.id} variant="display" style={styles.fighterName}>
                 {fighter.name}
               </Text>
-            </Pressable>
-          ))
+            ),
+          )
         ) : (
           <Text variant="display" color="textSecondary" style={styles.fighterName}>
             Unknown fighter
@@ -133,7 +159,7 @@ function ParallelRow({ parallel, status }: { parallel: ParallelInfo; status: Car
         </View>
       </View>
       {rowError ? (
-        <Text variant="label" color="textSecondary" style={styles.rowError}>
+        <Text variant="label" color="brandRed" style={styles.rowError}>
           {rowError}
         </Text>
       ) : null}

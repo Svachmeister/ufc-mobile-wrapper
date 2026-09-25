@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/lib/auth/SessionContext';
+import { myMarkedCardsKey } from './collectionQueries';
 
 export type CardStatus = 'owned' | 'wanted';
 export type MyCardStatusMap = Record<string, CardStatus>;
@@ -123,6 +124,10 @@ export function useSetCardStatus() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: key });
+      // M4-B's Collection tab reads the same marks through a separate,
+      // richer query — every write here must refresh it too so marking a
+      // card on the Cards tab shows up there without a manual refresh.
+      queryClient.invalidateQueries({ queryKey: myMarkedCardsKey(userId) });
     },
   });
 }

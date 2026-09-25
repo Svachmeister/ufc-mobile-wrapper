@@ -165,44 +165,36 @@ export function groupChecklistRows(rows: ChecklistRow[]): ChecklistCard[] {
   }));
 }
 
-export type FighterCardRow = {
-  id: string;
+type SetSubsetRow = ParallelGroupRow & {
   set_id: string;
-  subset: string;
-  card_number: string;
-  variation: string;
-  print_run: number | null;
-  is_rookie: boolean;
   set_name: string;
   set_year: number;
   set_sort_order: number;
-};
-
-export type FighterCardGroupRow = ParallelGroup & {
   subset: string;
 };
 
-export type FighterSetSection = {
+type SetSubsetBucket<T> = {
   set_id: string;
   set_name: string;
-  cards: FighterCardGroupRow[];
+  subsetsInOrder: string[];
+  rowsBySubset: Map<string, T[]>;
 };
 
 /**
- * Sets ordered newest year first, then sort_order, then name (same tail
- * ordering groupSetsByYear uses within a year). Within a set, cards are
- * grouped per subset (Base Set first, then alphabetical, via orderSubsets)
- * and each subset's rows are collapsed to one row per card_number via
- * groupByCardNumber — never across two different subsets, since the same
- * card_number can occur in more than one subset of the same set.
+ * Shared by groupFighterCards and groupCollectionCards: buckets rows by set
+ * (newest year first, then sort_order, then name — same tail ordering
+ * groupSetsByYear uses within a year), then by subset within each set
+ * (Base Set first, then alphabetical, via orderSubsets). Callers still run
+ * groupByCardNumber themselves per subset, since what they attach to each
+ * collapsed card row differs (e.g. Collection also wants fighter_name).
  */
-export function groupFighterCards(rows: FighterCardRow[]): FighterSetSection[] {
+function bucketRowsBySetAndSubset<T extends SetSubsetRow>(rows: T[]): SetSubsetBucket<T>[] {
   type SetBucket = {
     set_id: string;
     set_name: string;
     set_year: number;
     set_sort_order: number;
-    rows: FighterCardRow[];
+    rows: T[];
   };
   const bySet = new Map<string, SetBucket>();
 
@@ -226,7 +218,7 @@ export function groupFighterCards(rows: FighterCardRow[]): FighterSetSection[] {
   );
 
   return buckets.map((bucket) => {
-    const rowsBySubset = new Map<string, FighterCardRow[]>();
+    const rowsBySubset = new Map<string, T[]>();
     for (const row of bucket.rows) {
       const list = rowsBySubset.get(row.subset);
       if (list) {
@@ -236,11 +228,74 @@ export function groupFighterCards(rows: FighterCardRow[]): FighterSetSection[] {
       }
     }
 
-    const subsetsInOrder = orderSubsets(Array.from(rowsBySubset.keys()));
-    const cards: FighterCardGroupRow[] = subsetsInOrder.flatMap((subset) =>
-      groupByCardNumber(rowsBySubset.get(subset) ?? []).map((group) => ({ ...group, subset })),
-    );
-
-    return { set_id: bucket.set_id, set_name: bucket.set_name, cards };
+    return {
+      set_id: bucket.set_id,
+      set_name: bucket.set_name,
+      subsetsInOrder: orderSubsets(Array.from(rowsBySubset.keys())),
+      rowsBySubset,
+    };
   });
+}
+
+export type FighterCardRow = SetSubsetRow;
+
+export type FighterCardGroupRow = ParallelGroup & {
+  subset: string;
+};
+
+export type FighterSetSection = {
+  set_id: string;
+  set_name: string;
+  cards: FighterCardGroupRow[];
+};
+
+export function groupFighterCards(rows: FighterCardRow[]): FighterSetSection[] {
+  return bucketRowsBySetAndSubset(rows).map((bucket) => ({
+    set_id: bucket.set_id,
+    set_name: bucket.set_name,
+    cards: bucket.subsetsInOrder.flatMap((subset) =>
+      groupByCardNumber(bucket.rowsBySubset.get(subset) ?? []).map((group) => ({ ...group, subset })),
+    ),
+  }));
+}
+
+export type CollectionCardRow = SetSubsetRow & {
+  fighter_name: string;
+};
+
+export type CollectionCardGroupRow = ParallelGroup & {
+  subset: string;
+  fighter_name: string;
+};
+
+export type CollectionSetSection = {
+  set_id: string;
+  set_name: string;
+  cards: CollectionCardGroupRow[];
+};
+
+/**
+ * Same set/subset bucketing as groupFighterCards, plus fighter_name
+ * reattached per card_number the way groupChecklistRows does (first row
+ * encountered for that number, within the current subset).
+ */
+export function groupCollectionCards(rows: CollectionCardRow[]): CollectionSetSection[] {
+  return bucketRowsBySetAndSubset(rows).map((bucket) => ({
+    set_id: bucket.set_id,
+    set_name: bucket.set_name,
+    cards: bucket.subsetsInOrder.flatMap((subset) => {
+      const subsetRows = bucket.rowsBySubset.get(subset) ?? [];
+      const fighterNameByNumber = new Map<string, string>();
+      for (const row of subsetRows) {
+        if (!fighterNameByNumber.has(row.card_number)) {
+          fighterNameByNumber.set(row.card_number, row.fighter_name);
+        }
+      }
+      return groupByCardNumber(subsetRows).map((group) => ({
+        ...group,
+        subset,
+        fighter_name: fighterNameByNumber.get(group.card_number) ?? '',
+      }));
+    }),
+  }));
 }
