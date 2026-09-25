@@ -45,7 +45,7 @@ export function CardDetailScreen({ cardId }: { cardId: string }) {
     );
   }
 
-  const { card, parallels, fighterNames } = query.data;
+  const { card, parallels, fighters } = query.data;
 
   return (
     <Screen>
@@ -57,11 +57,13 @@ export function CardDetailScreen({ cardId }: { cardId: string }) {
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text variant="display">{card.card_number}</Text>
-        {fighterNames.length > 0 ? (
-          fighterNames.map((name) => (
-            <Text key={name} variant="display" style={styles.fighterName}>
-              {name}
-            </Text>
+        {fighters.length > 0 ? (
+          fighters.map((fighter) => (
+            <Pressable key={fighter.id} onPress={() => router.push(`/(tabs)/cards/fighter/${fighter.id}`)}>
+              <Text variant="display" style={styles.fighterName}>
+                {fighter.name}
+              </Text>
+            </Pressable>
           ))
         ) : (
           <Text variant="display" color="textSecondary" style={styles.fighterName}>

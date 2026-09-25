@@ -6,8 +6,9 @@ import { useRouter } from 'expo-router';
 
 import { Button, Screen, Text } from '@/components/ui';
 import { borderWidths, colors, radius, spacing } from '@/theme/tokens';
-import { groupChecklistRows, parallelChipLabel, type ChecklistCard, type ParallelInfo } from '@/lib/cards/cardGrouping';
+import { groupChecklistRows, type ChecklistCard } from '@/lib/cards/cardGrouping';
 import { useSet, useSetChecklist, useSetSubsets } from '@/lib/cards/queries';
+import { ParallelChip, RcTag } from './ParallelChip';
 
 const BACK_TARGET = 44;
 const BACK_ICON_SIZE = 24;
@@ -183,11 +184,7 @@ function ChecklistCardRow({ card, onPress }: { card: ChecklistCard; onPress: () 
           <Text variant="heading" numberOfLines={1} style={styles.cardFighter}>
             {card.fighter_name}
           </Text>
-          {card.is_rookie ? (
-            <View style={styles.rcTag}>
-              <Text variant="label">RC</Text>
-            </View>
-          ) : null}
+          {card.is_rookie ? <RcTag /> : null}
         </View>
         <View style={styles.chipsRow}>
           {card.parallels.map((parallel) => (
@@ -196,17 +193,6 @@ function ChecklistCardRow({ card, onPress }: { card: ChecklistCard; onPress: () 
         </View>
       </View>
     </Pressable>
-  );
-}
-
-function ParallelChip({ parallel }: { parallel: ParallelInfo }) {
-  const isOneOfOne = parallel.print_run === 1;
-  return (
-    <View style={[styles.parallelChip, isOneOfOne && styles.parallelChipOneOfOne]}>
-      <Text variant="label" color={isOneOfOne ? 'surface' : 'textPrimary'}>
-        {parallelChipLabel(parallel)}
-      </Text>
-    </View>
   );
 }
 
@@ -289,27 +275,9 @@ const styles = StyleSheet.create({
   cardFighter: {
     flexShrink: 1,
   },
-  rcTag: {
-    borderWidth: borderWidths.structural,
-    borderColor: colors.border,
-    borderRadius: radius.none,
-    paddingVertical: 1,
-    paddingHorizontal: spacing.xs,
-  },
   chipsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
-  },
-  parallelChip: {
-    borderWidth: borderWidths.structural,
-    borderColor: colors.border,
-    borderRadius: radius.none,
-    paddingVertical: 2,
-    paddingHorizontal: spacing.xs,
-  },
-  parallelChipOneOfOne: {
-    backgroundColor: colors.textPrimary,
-    borderColor: colors.textPrimary,
   },
 });

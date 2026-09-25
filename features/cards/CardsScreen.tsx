@@ -1,16 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 
-import { Button, Screen, SegmentedControl, Text } from '@/components/ui';
+import { Button, Screen, SegmentedControl, Text, TextField } from '@/components/ui';
 import { borderWidths, colors, spacing } from '@/theme/tokens';
 import { groupSetsByYear, type SetRow } from '@/lib/cards/cardGrouping';
 import { useSets } from '@/lib/cards/queries';
+import { useFightersList, type FighterListRow } from '@/lib/cards/fighterQueries';
 
 type Tab = 'sets' | 'fighters';
 
 type SetsListItem = { kind: 'year'; year: number } | { kind: 'set'; set: SetRow };
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 export function CardsScreen() {
   const [tab, setTab] = useState<Tab>('sets');
@@ -34,10 +37,80 @@ export function CardsScreen() {
 }
 
 function FightersPane() {
+  const router = useRouter();
+  const [inputValue, setInputValue] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(inputValue), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timeout);
+  }, [inputValue]);
+
+  const query = useFightersList(debouncedSearch);
+  const rows = query.data?.pages.flatMap((page) => page) ?? [];
+
   return (
-    <View style={styles.centered}>
-      <Text variant="body">Fighters arrive in the next update.</Text>
-    </View>
+    <>
+      <View style={styles.searchWrap}>
+        <TextField
+          label="Search"
+          placeholder="Fighter name"
+          value={inputValue}
+          onChangeText={setInputValue}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+        />
+      </View>
+
+      {query.isLoading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator color={colors.brandRed} />
+        </View>
+      ) : query.isError ? (
+        <View style={styles.centered}>
+          <Text variant="body" style={styles.errorText}>
+            Could not load fighters.
+          </Text>
+          <Button variant="outline" label="Try again" onPress={() => query.refetch()} style={styles.retryButton} />
+        </View>
+      ) : rows.length === 0 ? (
+        <View style={styles.centered}>
+          <Text variant="body">No fighters found.</Text>
+        </View>
+      ) : (
+        <FlashList
+          data={rows}
+          keyExtractor={(row) => row.id}
+          renderItem={({ item }) => (
+            <FighterRowItem fighter={item} onPress={() => router.push(`/(tabs)/cards/fighter/${item.id}`)} />
+          )}
+          onEndReached={() => {
+            if (query.hasNextPage && !query.isFetchingNextPage) {
+              query.fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.5}
+          refreshing={query.isRefetching}
+          onRefresh={() => query.refetch()}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
+    </>
+  );
+}
+
+function FighterRowItem({ fighter, onPress }: { fighter: FighterListRow; onPress: () => void }) {
+  const secondary = [fighter.weight_class, fighter.nationality].filter(Boolean).join(' · ');
+  return (
+    <Pressable onPress={onPress} style={styles.setRow}>
+      <Text variant="heading">{fighter.name}</Text>
+      {secondary ? (
+        <Text variant="body" color="textSecondary">
+          {secondary}
+        </Text>
+      ) : null}
+    </Pressable>
   );
 }
 
@@ -112,6 +185,10 @@ function SetRowItem({ set, onPress }: { set: SetRow; onPress: () => void }) {
 
 const styles = StyleSheet.create({
   segmentWrap: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+  },
+  searchWrap: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
   },

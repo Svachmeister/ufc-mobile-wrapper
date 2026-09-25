@@ -118,10 +118,15 @@ export type CardDetailCard = {
   setName: string;
 };
 
+export type CardDetailFighter = {
+  id: string;
+  name: string;
+};
+
 export type CardDetailData = {
   card: CardDetailCard;
   parallels: ParallelInfo[];
-  fighterNames: string[];
+  fighters: CardDetailFighter[];
 };
 
 async function fetchCardDetail(cardId: string): Promise<CardDetailData | null> {
@@ -166,19 +171,19 @@ async function fetchCardDetail(cardId: string): Promise<CardDetailData | null> {
   }
   const fighterIds = Array.from(bestPositionByFighter.keys());
 
-  let fighterNames: string[] = [];
+  let fighters: CardDetailFighter[] = [];
   if (fighterIds.length > 0) {
-    const { data: fighters, error: fightersError } = await supabase
+    const { data: fighterRows, error: fightersError } = await supabase
       .from('fighters')
       .select('id, name')
       .in('id', fighterIds);
     if (fightersError) {
       throw fightersError;
     }
-    fighterNames = (fighters ?? [])
+    fighters = (fighterRows ?? [])
       .slice()
       .sort((a, b) => (bestPositionByFighter.get(a.id) ?? 0) - (bestPositionByFighter.get(b.id) ?? 0))
-      .map((fighter) => fighter.name);
+      .map((fighter) => ({ id: fighter.id, name: fighter.name }));
   }
 
   const setRelation = (cardRow as { sets?: { name: string } | { name: string }[] | null }).sets;
@@ -194,7 +199,7 @@ async function fetchCardDetail(cardId: string): Promise<CardDetailData | null> {
       setName,
     },
     parallels: sortParallels(siblings ?? []),
-    fighterNames,
+    fighters,
   };
 }
 

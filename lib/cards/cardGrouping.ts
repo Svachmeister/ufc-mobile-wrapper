@@ -103,18 +103,16 @@ export function parallelChipLabel(parallel: ParallelInfo): string {
   return `${parallel.variation} /${parallel.print_run}`;
 }
 
-export type ChecklistRow = {
+export type ParallelGroupRow = {
   id: string;
   card_number: string;
   variation: string;
   print_run: number | null;
-  fighter_name: string;
   is_rookie: boolean;
 };
 
-export type ChecklistCard = {
+export type ParallelGroup = {
   card_number: string;
-  fighter_name: string;
   is_rookie: boolean;
   parallels: ParallelInfo[];
 };
@@ -123,27 +121,126 @@ export type ChecklistCard = {
  * Groups by card_number regardless of which loaded page a row came from, so
  * a card whose parallels straddle two .range() pages still merges into one
  * row once both pages have arrived (and shows a partial chip set in the
- * meantime, since rows render as pages come in).
+ * meantime, since rows render as pages come in). Callers must only pass rows
+ * that already share one set + subset — card_number is unique within that
+ * scope, not across a whole set or fighter.
  */
-export function groupChecklistRows(rows: ChecklistRow[]): ChecklistCard[] {
-  const byNumber = new Map<string, ChecklistCard>();
+export function groupByCardNumber<T extends ParallelGroupRow>(rows: T[]): ParallelGroup[] {
+  const byNumber = new Map<string, ParallelGroup>();
 
   for (const row of rows) {
-    let card = byNumber.get(row.card_number);
-    if (!card) {
-      card = {
-        card_number: row.card_number,
-        fighter_name: row.fighter_name,
-        is_rookie: row.is_rookie,
-        parallels: [],
-      };
-      byNumber.set(row.card_number, card);
+    let group = byNumber.get(row.card_number);
+    if (!group) {
+      group = { card_number: row.card_number, is_rookie: row.is_rookie, parallels: [] };
+      byNumber.set(row.card_number, group);
     }
-    card.is_rookie = card.is_rookie || row.is_rookie;
-    card.parallels.push({ id: row.id, variation: row.variation, print_run: row.print_run });
+    group.is_rookie = group.is_rookie || row.is_rookie;
+    group.parallels.push({ id: row.id, variation: row.variation, print_run: row.print_run });
   }
 
   return Array.from(byNumber.values())
-    .map((card) => ({ ...card, parallels: sortParallels(card.parallels) }))
+    .map((group) => ({ ...group, parallels: sortParallels(group.parallels) }))
     .sort((a, b) => compareCardNumbers(a.card_number, b.card_number));
+}
+
+export type ChecklistRow = ParallelGroupRow & {
+  fighter_name: string;
+};
+
+export type ChecklistCard = ParallelGroup & {
+  fighter_name: string;
+};
+
+export function groupChecklistRows(rows: ChecklistRow[]): ChecklistCard[] {
+  const fighterNameByNumber = new Map<string, string>();
+  for (const row of rows) {
+    if (!fighterNameByNumber.has(row.card_number)) {
+      fighterNameByNumber.set(row.card_number, row.fighter_name);
+    }
+  }
+
+  return groupByCardNumber(rows).map((group) => ({
+    ...group,
+    fighter_name: fighterNameByNumber.get(group.card_number) ?? '',
+  }));
+}
+
+export type FighterCardRow = {
+  id: string;
+  set_id: string;
+  subset: string;
+  card_number: string;
+  variation: string;
+  print_run: number | null;
+  is_rookie: boolean;
+  set_name: string;
+  set_year: number;
+  set_sort_order: number;
+};
+
+export type FighterCardGroupRow = ParallelGroup & {
+  subset: string;
+};
+
+export type FighterSetSection = {
+  set_id: string;
+  set_name: string;
+  cards: FighterCardGroupRow[];
+};
+
+/**
+ * Sets ordered newest year first, then sort_order, then name (same tail
+ * ordering groupSetsByYear uses within a year). Within a set, cards are
+ * grouped per subset (Base Set first, then alphabetical, via orderSubsets)
+ * and each subset's rows are collapsed to one row per card_number via
+ * groupByCardNumber — never across two different subsets, since the same
+ * card_number can occur in more than one subset of the same set.
+ */
+export function groupFighterCards(rows: FighterCardRow[]): FighterSetSection[] {
+  type SetBucket = {
+    set_id: string;
+    set_name: string;
+    set_year: number;
+    set_sort_order: number;
+    rows: FighterCardRow[];
+  };
+  const bySet = new Map<string, SetBucket>();
+
+  for (const row of rows) {
+    let bucket = bySet.get(row.set_id);
+    if (!bucket) {
+      bucket = {
+        set_id: row.set_id,
+        set_name: row.set_name,
+        set_year: row.set_year,
+        set_sort_order: row.set_sort_order,
+        rows: [],
+      };
+      bySet.set(row.set_id, bucket);
+    }
+    bucket.rows.push(row);
+  }
+
+  const buckets = Array.from(bySet.values()).sort(
+    (a, b) => b.set_year - a.set_year || a.set_sort_order - b.set_sort_order || a.set_name.localeCompare(b.set_name),
+  );
+
+  return buckets.map((bucket) => {
+    const rowsBySubset = new Map<string, FighterCardRow[]>();
+    for (const row of bucket.rows) {
+      const list = rowsBySubset.get(row.subset);
+      if (list) {
+        list.push(row);
+      } else {
+        rowsBySubset.set(row.subset, [row]);
+      }
+    }
+
+    const subsetsInOrder = orderSubsets(Array.from(rowsBySubset.keys()));
+    const cards: FighterCardGroupRow[] = subsetsInOrder.flatMap((subset) =>
+      groupByCardNumber(rowsBySubset.get(subset) ?? []).map((group) => ({ ...group, subset })),
+    );
+
+    return { set_id: bucket.set_id, set_name: bucket.set_name, cards };
+  });
 }

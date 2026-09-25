@@ -6,3 +6,4 @@ export { Chip } from './Chip';
 export { TextField } from './TextField';
 export { TextLink } from './TextLink';
 export { SegmentedControl } from './SegmentedControl';
+export { FormIndicator } from './FormIndicator';
