@@ -8,8 +8,10 @@ import { borderWidths, colors, radius, spacing } from '@/theme/tokens';
 import { useCardDetail, type CardDetailData } from '@/lib/cards/queries';
 import type { ParallelInfo } from '@/lib/cards/cardGrouping';
 import { nextStatusFor, useMyCardStatuses, useSetCardStatus, type CardStatus } from '@/lib/cards/userCardStatuses';
+import { OWNED_ICON, WANTED_ICON } from './ParallelLine';
 
 const BACK_TARGET = 44;
+const TOGGLE_ICON_SIZE = 14;
 const BACK_ICON_SIZE = 24;
 
 type CardDetailScreenProps = {
@@ -145,13 +147,15 @@ function ParallelRow({ parallel, status }: { parallel: ParallelInfo; status: Car
         </View>
         <View style={styles.toggleGroup}>
           <ToggleButton
-            label="HAVE"
+            label="OWNED"
+            icon={OWNED_ICON}
             active={status === 'owned'}
             disabled={setStatus.isPending}
             onPress={() => press('owned')}
           />
           <ToggleButton
-            label="WANT"
+            label="WANTED"
+            icon={WANTED_ICON}
             active={status === 'wanted'}
             disabled={setStatus.isPending}
             onPress={() => press('wanted')}
@@ -169,11 +173,13 @@ function ParallelRow({ parallel, status }: { parallel: ParallelInfo; status: Car
 
 function ToggleButton({
   label,
+  icon,
   active,
   disabled,
   onPress,
 }: {
-  label: 'HAVE' | 'WANT';
+  label: 'OWNED' | 'WANTED';
+  icon: typeof OWNED_ICON | typeof WANTED_ICON;
   active: boolean;
   disabled: boolean;
   onPress: () => void;
@@ -186,6 +192,7 @@ function ToggleButton({
       accessibilityState={{ selected: active, disabled }}
       style={[styles.toggleButton, active && styles.toggleButtonActive, disabled && styles.toggleButtonDisabled]}
     >
+      <Ionicons name={icon} size={TOGGLE_ICON_SIZE} color={active ? colors.surface : colors.textPrimary} />
       <Text variant="label" color={active ? 'surface' : 'textPrimary'}>
         {label}
       </Text>
@@ -259,6 +266,8 @@ const styles = StyleSheet.create({
     borderWidth: borderWidths.structural,
     borderColor: colors.textPrimary,
     borderRadius: radius.none,
+    flexDirection: 'row',
+    gap: spacing.xs,
     alignItems: 'center',
     justifyContent: 'center',
   },

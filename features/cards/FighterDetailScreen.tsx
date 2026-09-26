@@ -17,7 +17,7 @@ import {
 import { buildFighterCardSections, useFighterCards, useFighterDetail, type FighterDetailRow } from '@/lib/cards/fighterQueries';
 import type { FighterCardGroupRow } from '@/lib/cards/cardGrouping';
 import { useMyCardStatuses, type MyCardStatusMap } from '@/lib/cards/userCardStatuses';
-import { ParallelChip, RcTag } from './ParallelChip';
+import { ParallelLine, RcTag } from './ParallelLine';
 
 const BACK_TARGET = 44;
 const BACK_ICON_SIZE = 24;
@@ -235,11 +235,7 @@ function FighterCardRowItem({
           </Text>
           {card.is_rookie ? <RcTag /> : null}
         </View>
-        <View style={styles.chipsRow}>
-          {card.parallels.map((parallel) => (
-            <ParallelChip key={parallel.id} parallel={parallel} status={statuses?.[parallel.id]} />
-          ))}
-        </View>
+        <ParallelLine parallels={card.parallels} statusFor={(parallel) => statuses?.[parallel.id]} />
       </View>
     </Pressable>
   );
@@ -352,10 +348,5 @@ const styles = StyleSheet.create({
   },
   cardSubset: {
     flexShrink: 1,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
   },
 });

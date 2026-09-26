@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import { Ionicons } from '@expo/vector-icons';
 
 import { Text } from '@/components/ui';
 import { borderWidths, colors, radius, spacing, typography } from '@/theme/tokens';
@@ -19,13 +20,14 @@ import {
   type MyCardStatusMap,
   type NextCardStatus,
 } from '@/lib/cards/userCardStatuses';
-import { RcTag } from './ParallelChip';
+import { OWNED_ICON, RcTag, WANTED_ICON } from './ParallelLine';
 
 const FIRST_COLUMN_WIDTH = 112;
 const COLUMN_WIDTH = 60;
 const ROW_HEIGHT = 56;
 const HEADER_HEIGHT = 52;
 const CELL_SIZE = 44;
+const CELL_ICON_SIZE = 16;
 const ERROR_VISIBLE_MS = 3000;
 
 type PressCell = (cardId: string, nextStatus: NextCardStatus) => void;
@@ -123,7 +125,7 @@ export function ChecklistMatrix({
       {/* The error replaces the hint rather than stacking above it, so the
           grid never shifts under the user's finger mid-tapping. */}
       <Text variant="body" color={errorVisible ? 'brandRed' : 'textSecondary'} style={styles.hint} numberOfLines={1}>
-        {errorVisible ? 'Could not save. Try again.' : 'Tap = HAVE · Hold = WANT'}
+        {errorVisible ? 'Could not save. Try again.' : 'Tap = OWNED · Hold = WANTED'}
       </Text>
 
       <View style={styles.viewport} onLayout={onViewportLayout}>
@@ -248,8 +250,8 @@ function MatrixRow({
 }
 
 /**
- * Same visual rules as ParallelChip: owned fills black (whatever the print
- * run) · otherwise a 1/1 gets the 3px border · wanted adds the dot. A
+ * owned fills black with a white checkmark (whatever the print run) ·
+ * otherwise a 1/1 gets the 3px border · wanted adds a black magnifier. A
  * parallel the card doesn't come in gets a faint fill and no press handler.
  */
 const MatrixCell = memo(function MatrixCell({
@@ -282,11 +284,12 @@ const MatrixCell = memo(function MatrixCell({
       style={styles.cellSlot}
       accessibilityRole="button"
       accessibilityLabel={`${cardNumber} ${parallelChipLabel(parallel)}`}
-      accessibilityValue={{ text: isOwned ? 'Have' : isWanted ? 'Want' : 'Not marked' }}
-      accessibilityHint="Tap to toggle have, hold to toggle want"
+      accessibilityValue={{ text: isOwned ? 'Owned' : isWanted ? 'Wanted' : 'Not marked' }}
+      accessibilityHint="Tap to toggle owned, hold to toggle wanted"
     >
       <View style={[styles.cell, isOneOfOne && !isOwned && styles.cellOneOfOne, isOwned && styles.cellOwned]}>
-        {isWanted ? <View style={styles.wantedDot} /> : null}
+        {isOwned ? <Ionicons name={OWNED_ICON} size={CELL_ICON_SIZE} color={colors.surface} /> : null}
+        {isWanted ? <Ionicons name={WANTED_ICON} size={CELL_ICON_SIZE} color={colors.textPrimary} /> : null}
       </View>
     </Pressable>
   );
@@ -393,12 +396,5 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     backgroundColor: colors.border,
     opacity: 0.5,
-  },
-  // Same 6pt round dot as ParallelChip's wanted mark.
-  wantedDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.textPrimary,
   },
 });

@@ -49,7 +49,7 @@ async function fetchMyCardStatuses(userId: string): Promise<MyCardStatusMap> {
 
 /**
  * One shared cache of the signed-in user's marks, keyed by userId so every
- * screen that renders a ParallelChip or the card detail toggles reads (and,
+ * screen that renders a ParallelLine or the card detail toggles reads (and,
  * via useSetCardStatus, writes) the same query.
  */
 export function useMyCardStatuses() {

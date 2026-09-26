@@ -9,7 +9,7 @@ import { borderWidths, colors, radius, spacing } from '@/theme/tokens';
 import { groupChecklistRows, type ChecklistCard } from '@/lib/cards/cardGrouping';
 import { useSet, useSetChecklist, useSetSubsets } from '@/lib/cards/queries';
 import { useMyCardStatuses, type MyCardStatusMap } from '@/lib/cards/userCardStatuses';
-import { ParallelChip, RcTag } from './ParallelChip';
+import { ParallelLine, RcTag } from './ParallelLine';
 import { ChecklistMatrix } from './ChecklistMatrix';
 
 const BACK_TARGET = 44;
@@ -224,11 +224,7 @@ function ChecklistCardRow({
           </Text>
           {card.is_rookie ? <RcTag /> : null}
         </View>
-        <View style={styles.chipsRow}>
-          {card.parallels.map((parallel) => (
-            <ParallelChip key={parallel.id} parallel={parallel} status={statuses?.[parallel.id]} />
-          ))}
-        </View>
+        <ParallelLine parallels={card.parallels} statusFor={(parallel) => statuses?.[parallel.id]} />
       </View>
     </Pressable>
   );
@@ -320,10 +316,5 @@ const styles = StyleSheet.create({
   },
   cardFighter: {
     flexShrink: 1,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
   },
 });

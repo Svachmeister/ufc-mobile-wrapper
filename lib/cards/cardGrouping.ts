@@ -104,6 +104,21 @@ export function parallelChipLabel(parallel: ParallelInfo): string {
 }
 
 /**
+ * Compact label for the list parallel line: unnumbered parallels by name
+ * (a card can have several, e.g. Base and Gold), numbered ones by print run
+ * only, and 1/1.
+ */
+export function parallelLineLabel(parallel: ParallelInfo): string {
+  if (parallel.print_run === 1) {
+    return '1/1';
+  }
+  if (parallel.print_run == null) {
+    return parallel.variation;
+  }
+  return `/${parallel.print_run}`;
+}
+
+/**
  * Identity of a parallel across cards: each card in a subset has its own
  * cards.id per parallel, so the matrix lines its columns up on variation +
  * print run instead.

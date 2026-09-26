@@ -8,7 +8,7 @@ import { borderWidths, colors, spacing } from '@/theme/tokens';
 import { buildCollectionSections, computeCollectionStats, useMyMarkedCards } from '@/lib/cards/collectionQueries';
 import type { CollectionCardGroupRow } from '@/lib/cards/cardGrouping';
 import type { CardStatus } from '@/lib/cards/userCardStatuses';
-import { ParallelChip, RcTag } from '@/features/cards/ParallelChip';
+import { ParallelLine, RcTag } from '@/features/cards/ParallelLine';
 
 type ListItem =
   | { kind: 'setHeading'; key: string; setName: string; count: number }
@@ -80,8 +80,8 @@ export function CollectionScreen() {
         <View style={styles.centered}>
           <Text variant="body" style={styles.centeredText}>
             {segment === 'owned'
-              ? 'No cards yet. Open any card and tap HAVE.'
-              : 'Your wantlist is empty. Open any card and tap WANT.'}
+              ? 'No cards yet. Open any card and tap OWNED.'
+              : 'Your wantlist is empty. Open any card and tap WANTED.'}
           </Text>
         </View>
       ) : (
@@ -156,14 +156,10 @@ function CollectionCardRowItem({
         <Text variant="label" color="textSecondary" numberOfLines={1}>
           {card.subset}
         </Text>
-        <View style={styles.chipsRow}>
-          {/* Every parallel here already belongs to the selected segment —
-              buildCollectionSections filtered by status before grouping — so
-              the chip status is just the segment itself, not a per-parallel lookup. */}
-          {card.parallels.map((parallel) => (
-            <ParallelChip key={parallel.id} parallel={parallel} status={segment} />
-          ))}
-        </View>
+        {/* Every parallel here already belongs to the selected segment —
+            buildCollectionSections filtered by status before grouping — so
+            each item's status is just the segment itself, not a per-parallel lookup. */}
+        <ParallelLine parallels={card.parallels} statusFor={() => segment} />
       </View>
     </Pressable>
   );
@@ -236,10 +232,5 @@ const styles = StyleSheet.create({
   },
   cardFighter: {
     flexShrink: 1,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
   },
 });
